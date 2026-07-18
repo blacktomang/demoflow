@@ -22,6 +22,35 @@ There is no DemoFlow account, SaaS dashboard, source upload, or per-demo payment
 
 The published plugin currently requires Node.js 20+ to launch its bundled local runtime. Codex marketplace publication is still pending; until then, the plugin is installed from its released plugin bundle.
 
+## Install and test locally
+
+The repository now includes a local Codex marketplace manifest at `.agents/plugins/marketplace.json`.
+
+```bash
+codex plugin marketplace add /absolute/path/to/demoflow
+codex plugin add demoflow@personal
+```
+
+Restart Codex or start a new Codex task in a supported project after installing. For the included sample app, use the following prompt:
+
+```text
+Use DemoFlow to inspect this project and create the onboarding guided demo.
+Use the dev package script and the existing .demoflow/onboarding/demo.spec.json fixture.
+```
+
+DemoFlow will ask for approval before starting the project `dev` script. It should return a local Demo Mode URL; open that URL and click through the real onboarding flow. The plugin needs Node.js 20+ on the developer's PATH, but no DemoFlow package-manager install is required.
+
+### Contributor checks
+
+```bash
+cd plugins/demoflow/mcp-server
+pnpm test
+pnpm package-plugin
+
+cd ../sample-app
+pnpm build
+```
+
 ## For contributors
 
 Repository cloning and `pnpm install` are contributor-only steps. They are used to change or verify DemoFlow itself, not to use a released plugin.
