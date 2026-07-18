@@ -6,7 +6,32 @@ DemoFlow reads a local project to create a versioned `demo.spec.json`, then serv
 
 ## Status
 
-Early Build Week prototype. The initial repository contains the product definition, Codex plugin scaffold, and local MCP runtime scaffold.
+Build Week MVP. DemoFlow includes a packaged local MCP runtime, a loopback-only proxy, a live browser overlay, and a Vite/React sample application.
+
+## For users
+
+DemoFlow is intended to be installed through Codex as a plugin. Once published, the user flow is:
+
+1. Install **DemoFlow** in Codex.
+2. Open a local web-app project.
+3. Ask: “Create a guided demo for onboarding.”
+4. Confirm the project development script.
+5. Open the generated local **Demo Mode** URL and click through the real app.
+
+There is no DemoFlow account, SaaS dashboard, source upload, or per-demo payment. The plugin bundles its MCP runtime; users should not need `pnpm install`.
+
+The published plugin currently requires Node.js 20+ to launch its bundled local runtime. Codex marketplace publication is still pending; until then, the plugin is installed from its released plugin bundle.
+
+## For contributors
+
+Repository cloning and `pnpm install` are contributor-only steps. They are used to change or verify DemoFlow itself, not to use a released plugin.
+
+```text
+plugins/demoflow/mcp-server     # MCP source and tests
+plugins/demoflow/overlay        # Browser overlay injected by the local proxy
+plugins/demoflow/runtime        # Committed bundled runtime included in a plugin release
+plugins/demoflow/sample-app     # Local verification app
+```
 
 ## Documents
 
@@ -22,7 +47,31 @@ Early Build Week prototype. The initial repository contains the product definiti
 4. Open Demo Mode at a second localhost URL.
 5. Click through the real application while tooltips explain each feature.
 
-## Development
+## How it works
+
+```mermaid
+flowchart LR
+  A["Project source code"] --> B["Codex + DemoFlow app map"]
+  B --> C["demo.spec.json"]
+  D["Local app: localhost:3000"] --> E["DemoFlow loopback proxy"]
+  C --> F["Temporary browser overlay"]
+  E --> F
+  F --> G["Interactive Demo Mode"]
+```
+
+The proxy only serves the app through a second loopback URL and injects the overlay at runtime. It does not alter application source files. The transparent highlight ignores pointer events, so the user continues clicking the real UI.
+
+## Build Week / judge path
+
+1. Install the DemoFlow plugin bundle in Codex.
+2. Open `plugins/demoflow/sample-app` or another supported local React/Vite project.
+3. Ask Codex to use the DemoFlow skill to create an onboarding flow.
+4. Approve the project `dev` script.
+5. Open the returned Demo Mode URL and complete the real four-step onboarding flow.
+
+Codex was used to define the product flow, generate the structured demo specification, and operate the local MCP tools. The project keeps the model-facing context compact by using a deterministic app map rather than repeated browser screenshots or DOM dumps.
+
+## Local verification
 
 The current first target is macOS + Node.js 20+ + a Vite/React sample app. The MCP server source is at `plugins/demoflow/mcp-server`.
 

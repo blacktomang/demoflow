@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "onboarding",
+  "title": "First-time onboarding",
+  "goal": "Create a workspace, project, and teammate invitation.",
+  "startPath": "/",
+  "steps": [
+    {
+      "id": "create-workspace",
+      "target": { "testId": "create-workspace" },
+      "tooltip": { "title": "Create your workspace", "body": "Workspaces keep projects, teammates, and settings in one shared home." },
+      "advance": { "type": "click-target" }
+    },
+    {
+      "id": "save-workspace",
+      "target": { "testId": "save-workspace" },
+      "tooltip": { "title": "Name the workspace", "body": "Choose a clear name so teammates know where shared work belongs." },
+      "advance": { "type": "click-target" }
+    },
+    {
+      "id": "create-project",
+      "target": { "testId": "create-project" },
+      "tooltip": { "title": "Start a project", "body": "Projects organize the work your team will plan and deliver together." },
+      "advance": { "type": "click-target" }
+    },
+    {
+      "id": "invite-teammate",
+      "target": { "testId": "invite-teammate" },
+      "tooltip": { "title": "Invite your teammate", "body": "Bring collaborators into the workspace so they can contribute right away." },
+      "advance": { "type": "click-target" }
+    }
+  ]
+}

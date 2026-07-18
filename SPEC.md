@@ -125,9 +125,9 @@ The overlay has three layers:
 
 1. A dimmer with a transparent cutout around the active target.
 2. A tooltip anchored beside the target.
-3. A compact control bar: Back, Skip, Exit, and step count.
+3. A compact control bar: Restart, Skip, Exit, and step count.
 
-The dimmer and target highlight use `pointer-events: none`; the real app stays interactive. The control bar alone uses `pointer-events: auto`.
+The dimmer and target highlight use `pointer-events: none`; the real app stays interactive. The control bar alone uses `pointer-events: auto`. Restart returns to the configured `startPath`; it never attempts to undo arbitrary application state step by step.
 
 The overlay listens for `click`, `input`, `submit`, `popstate`, and URL changes. It resolves the next step after the configured `advance` condition becomes true. A `MutationObserver` retries target lookup for up to five seconds after navigation or a condition change.
 

@@ -2,7 +2,7 @@
   "mcpServers": {
     "demoflow": {
       "command": "node",
-      "args": ["${pluginRoot}/mcp-server/dist/index.js"]
+      "args": ["${pluginRoot}/runtime/index.js"]
     }
   }
 }

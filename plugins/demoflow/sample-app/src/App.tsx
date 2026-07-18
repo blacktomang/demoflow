@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import React, { FormEvent, useState } from "react";
 
 type Step = "welcome" | "workspace" | "project" | "invite" | "complete";
 
