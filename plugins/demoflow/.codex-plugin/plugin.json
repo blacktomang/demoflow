@@ -1,0 +1,19 @@
+{
+  "name": "demoflow",
+  "version": "0.1.0",
+  "description": "Generate live guided demos for local web apps in Codex.",
+  "author": {
+    "name": "DemoFlow"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "DemoFlow",
+    "shortDescription": "Turn a local web app into a live guided demo.",
+    "longDescription": "DemoFlow analyzes a local project and runs a temporary, interactive guided-demo overlay without changing app source code.",
+    "developerName": "DemoFlow",
+    "category": "Developer Tools",
+    "capabilities": ["Local project analysis", "Live guided demo overlay"],
+    "defaultPrompt": "Use DemoFlow to create a guided demo for this local application."
+  },
+  "mcpServers": "./.mcp.json"
+}
