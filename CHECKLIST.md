@@ -92,11 +92,11 @@
 
 ### 9. Hackathon submission assets
 
-- [ ] Add architecture diagram and demo GIF/screenshot to README.
-- [ ] Document how Codex and GPT-5.6 were used to build and operate DemoFlow.
-- [ ] Add a judge path: install plugin → open sample repo → request demo → open local preview URL.
+- [ ] Add architecture diagram and demo GIF/screenshot to README. (Architecture diagram is complete; capture a final Demo Mode screenshot/GIF during recording.)
+- [x] Document how Codex and GPT-5.6 were used to build and operate DemoFlow.
+- [x] Add a judge path: install plugin → open sample repo → request demo → open local preview URL.
 - [ ] Record a public YouTube demo under three minutes with clear audio.
-- [ ] Create/update the Devpost project with title, tagline, description, tech stack, repo, and video link.
+- [ ] Create/update the Devpost project with title, tagline, description, tech stack, repo, and video link. (All but the video link are complete.)
 - [ ] Preserve dated commits and the primary Codex `/feedback` session ID.
 
 **Done when:** a judge can understand, install, test, and evaluate the project without a private account or demo-service subscription.

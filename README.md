@@ -38,6 +38,7 @@ plugins/demoflow/sample-app     # Local verification app
 - [Product requirements](PRD.md)
 - [Technical specification](SPEC.md)
 - [Build checklist](CHECKLIST.md)
+- [Build Week video script](DEMO_SCRIPT.md)
 
 ## Intended experience
 
