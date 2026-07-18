@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "demoflow": {
-      "command": "node",
+      "command": "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node",
       "args": ["${pluginRoot}/runtime/index.js"]
     }
   }
