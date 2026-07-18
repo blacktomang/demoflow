@@ -21190,7 +21190,8 @@ async function writeDemoSpec(workspacePath, spec) {
 // src/app-lifecycle.ts
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFile as readFile2, access } from "node:fs/promises";
+import { readFile as readFile2 } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path3 from "node:path";
 var apps = /* @__PURE__ */ new Map();
 async function waitForHealth(baseUrl, timeoutMs = 2e4) {
@@ -21208,18 +21209,14 @@ async function waitForHealth(baseUrl, timeoutMs = 2e4) {
   }
   throw new Error(`Local app did not become ready at ${baseUrl}: ${lastError}`);
 }
-async function packageManager(workspacePath) {
-  try {
-    await access(path3.join(workspacePath, "pnpm-lock.yaml"));
-    return "pnpm";
-  } catch {
-    return "npm";
-  }
+function packageManager() {
+  const bundledNpm = "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/npm";
+  return process.platform === "darwin" && existsSync(bundledNpm) ? bundledNpm : "npm";
 }
 async function startApp(input) {
   const packageJson = JSON.parse(await readFile2(path3.join(input.workspacePath, "package.json"), "utf8"));
   if (!packageJson.scripts?.[input.scriptName]) throw new Error(`Package script not found: ${input.scriptName}`);
-  const manager = await packageManager(input.workspacePath);
+  const manager = packageManager();
   const child = spawn(manager, ["run", input.scriptName], {
     cwd: input.workspacePath,
     shell: true,
@@ -21259,12 +21256,12 @@ async function stopApp(id) {
 import { createServer } from "node:http";
 import { randomUUID as randomUUID2 } from "node:crypto";
 import { readFile as readFile3 } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync as existsSync2 } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path4 from "node:path";
 var previews = /* @__PURE__ */ new Map();
 var moduleDirectory = path4.dirname(fileURLToPath(import.meta.url));
-var overlayDirectoryCandidate = [path4.resolve(moduleDirectory, "../overlay"), path4.resolve(moduleDirectory, "../../overlay")].find((candidate) => existsSync(path4.join(candidate, "overlay.js")));
+var overlayDirectoryCandidate = [path4.resolve(moduleDirectory, "../overlay"), path4.resolve(moduleDirectory, "../../overlay")].find((candidate) => existsSync2(path4.join(candidate, "overlay.js")));
 if (!overlayDirectoryCandidate) throw new Error("DemoFlow overlay bundle is missing");
 var overlayDirectory = overlayDirectoryCandidate;
 function loopbackUrl(value) {

@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFile, access } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 
 type StartedApp = { id: string; workspacePath: string; scriptName: string; baseUrl: string; process: ChildProcess };
@@ -22,14 +23,15 @@ export async function waitForHealth(baseUrl: string, timeoutMs = 20_000): Promis
   throw new Error(`Local app did not become ready at ${baseUrl}: ${lastError}`);
 }
 
-async function packageManager(workspacePath: string): Promise<"pnpm" | "npm"> {
-  try { await access(path.join(workspacePath, "pnpm-lock.yaml")); return "pnpm"; } catch { return "npm"; }
+function packageManager(): string {
+  const bundledNpm = "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/npm";
+  return process.platform === "darwin" && existsSync(bundledNpm) ? bundledNpm : "npm";
 }
 
 export async function startApp(input: { workspacePath: string; scriptName: string; baseUrl: string }): Promise<Pick<StartedApp, "id" | "baseUrl">> {
   const packageJson = JSON.parse(await readFile(path.join(input.workspacePath, "package.json"), "utf8")) as { scripts?: Record<string, string> };
   if (!packageJson.scripts?.[input.scriptName]) throw new Error(`Package script not found: ${input.scriptName}`);
-  const manager = await packageManager(input.workspacePath);
+  const manager = packageManager();
   const child = spawn(manager, ["run", input.scriptName], {
     cwd: input.workspacePath,
     shell: true,
