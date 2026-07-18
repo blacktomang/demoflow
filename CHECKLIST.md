@@ -4,42 +4,42 @@
 
 ### 1. Project foundation
 
-- [ ] Initialize a TypeScript workspace with `plugin`, `mcp-server`, `overlay`, and `sample-app` packages.
-- [ ] Add a root README with a one-command local development path.
-- [ ] Add `.gitignore` entries for `.demoflow/`, `node_modules/`, build output, and local logs.
-- [ ] Create a small Vite/React sample app with a four-step onboarding journey.
-- [ ] Ensure every sample-app demo target has an accessible name and stable `data-testid`.
+- [x] Initialize the plugin, MCP server, and sample-app TypeScript packages (overlay package is next).
+- [x] Add a root README describing the local development path.
+- [x] Add `.gitignore` entries for `.demoflow/`, `node_modules/`, build output, and local logs.
+- [x] Create a small Vite/React sample app with a four-step onboarding journey.
+- [x] Ensure every sample-app demo target has an accessible name and stable `data-testid`.
 
 **Done when:** a developer can run the sample app and manually complete onboarding.
 
 ### 2. Codex plugin
 
-- [ ] Create `.codex-plugin/plugin.json` with valid plugin metadata.
-- [ ] Create `skills/generate-demo/SKILL.md`.
+- [x] Create `.codex-plugin/plugin.json` with valid plugin metadata.
+- [x] Create `skills/generate-demo/SKILL.md`.
 - [ ] Instruct the skill to inspect before acting, write a structured spec, and ask approval before starting a project script.
-- [ ] Register the local DemoFlow MCP server in the plugin.
+- [x] Register the local DemoFlow MCP server in the plugin.
 - [ ] Document installation and supported platform: macOS, Node 20+, Vite/React sample app.
 
 **Done when:** DemoFlow appears as an installed Codex plugin and the skill can call its MCP tools.
 
 ### 3. Structured project scanner
 
-- [ ] Read `package.json` and return candidate development scripts.
-- [ ] Detect Vite/React project hints.
-- [ ] Collect `data-testid` values from `src/`.
-- [ ] Collect route strings and candidate visible button/label text.
-- [ ] Write a compact `.demoflow/app-map.json`.
+- [x] Read `package.json` and return candidate development scripts.
+- [x] Detect Vite/React project hints.
+- [x] Collect `data-testid` values from `src/`.
+- [x] Collect route strings and candidate visible button/label text.
+- [x] Write a compact `.demoflow/app-map.json`.
 - [ ] Keep output bounded; do not send raw source trees or browser DOM streams to the model.
 
 **Done when:** `demoflow.inspect_project` produces a useful, compact map for the sample app.
 
 ### 4. Spec generation and validation
 
-- [ ] Define TypeScript/Zod schema for `demo.spec.json`.
-- [ ] Support `testId`, `role/name`, `label`, and CSS target formats.
-- [ ] Support `click-target`, `path-is`, `element-visible`, and `manual` advance conditions.
-- [ ] Validate demo IDs and output paths to prevent traversal outside `.demoflow/`.
-- [ ] Implement `demoflow.write_spec`.
+- [x] Define TypeScript/Zod schema for `demo.spec.json`.
+- [x] Support `testId`, `role/name`, `label`, and CSS target formats.
+- [x] Support `click-target`, `path-is`, `element-visible`, and `manual` advance conditions.
+- [x] Validate demo IDs and output paths to prevent traversal outside `.demoflow/`.
+- [x] Implement `demoflow.write_spec`.
 - [ ] Create a checked-in onboarding fixture spec for the sample app.
 
 **Done when:** a valid spec is saved and an invalid spec returns a clear error.
