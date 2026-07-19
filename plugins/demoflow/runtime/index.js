@@ -21165,7 +21165,7 @@ import { mkdir as mkdir2, readFile as readFile2, readdir as readdir2, writeFile 
 import path2 from "node:path";
 var TargetSchema = external_exports.union([
   external_exports.object({ testId: external_exports.string().min(1) }),
-  external_exports.object({ role: external_exports.string().min(1), name: external_exports.string().min(1), withinText: external_exports.string().min(1).optional() }),
+  external_exports.object({ role: external_exports.string().min(1), name: external_exports.string().min(1), withinText: external_exports.string().min(1).optional(), occurrence: external_exports.number().int().min(1).optional() }),
   external_exports.object({ label: external_exports.string().min(1) }),
   external_exports.object({ css: external_exports.string().min(1) })
 ]);
@@ -21175,12 +21175,16 @@ var AdvanceSchema = external_exports.union([
   external_exports.object({ type: external_exports.literal("element-visible"), target: TargetSchema }),
   external_exports.object({ type: external_exports.literal("manual") })
 ]);
+var PresentationSchema = external_exports.object({
+  theme: external_exports.enum(["presenter", "minimal", "debug"])
+});
 var DemoSpecSchema = external_exports.object({
   version: external_exports.literal(1),
   id: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   title: external_exports.string().min(1),
   goal: external_exports.string().min(1),
   startPath: external_exports.string().startsWith("/"),
+  presentation: PresentationSchema.optional(),
   metadata: external_exports.object({
     appFingerprint: external_exports.string().regex(/^[a-f0-9]{64}$/),
     savedAt: external_exports.string().datetime()
@@ -21324,6 +21328,14 @@ async function serveReserved(preview, request, response) {
       try {
         const report = JSON.parse(body);
         if (report.missingTarget) preview.status.missingTargets.push(report.missingTarget);
+        if (report.failure?.stepId && report.failure.path && report.failure.target && ["target-unavailable", "ambiguous-target"].includes(report.failure.type)) {
+          const duplicate = preview.status.failures.some((failure) => failure.stepId === report.failure?.stepId && failure.path === report.failure?.path && failure.type === report.failure?.type);
+          if (!duplicate) preview.status.failures.push(report.failure);
+        }
+        if (report.diagnostic?.path && report.diagnostic.message && report.diagnostic.message.length <= 280 && ["app-alert", "window-error", "unhandled-rejection"].includes(report.diagnostic.kind)) {
+          const duplicate = preview.status.diagnostics.some((diagnostic) => diagnostic.path === report.diagnostic?.path && diagnostic.message === report.diagnostic?.message && diagnostic.kind === report.diagnostic?.kind);
+          if (!duplicate) preview.status.diagnostics.push(report.diagnostic);
+        }
       } catch {
         response.writeHead(400, { "content-type": "application/json" });
         response.end(JSON.stringify({ error: "Invalid DemoFlow status payload" }));
@@ -21363,7 +21375,7 @@ async function forward(preview, request, response) {
 async function createPreview(input) {
   await assertUpstreamReachable(input.baseUrl);
   const id = randomUUID();
-  const preview = { id, baseUrl: input.baseUrl, demoId: input.demoId, workspacePath: input.workspacePath, status: { missingTargets: [] } };
+  const preview = { id, baseUrl: input.baseUrl, demoId: input.demoId, workspacePath: input.workspacePath, status: { missingTargets: [], failures: [], diagnostics: [] } };
   preview.server = createServer(async (request, response) => {
     try {
       if (await serveReserved(preview, request, response)) return;
@@ -21383,7 +21395,7 @@ async function createPreview(input) {
 function getPreview(id) {
   const preview = previews.get(id);
   if (!preview) throw new Error(`Unknown DemoFlow preview: ${id}`);
-  return { id: preview.id, url: preview.url, baseUrl: preview.baseUrl, demoId: preview.demoId, missingTargets: preview.status.missingTargets };
+  return { id: preview.id, url: preview.url, baseUrl: preview.baseUrl, demoId: preview.demoId, missingTargets: preview.status.missingTargets, failures: preview.status.failures, diagnostics: preview.status.diagnostics };
 }
 async function stopPreview(id) {
   const preview = previews.get(id);
@@ -21462,7 +21474,7 @@ server.tool(
 );
 server.tool(
   "open_preview",
-  "Return the active local Demo Mode URL and its status.",
+  "Return the active local Demo Mode URL, including structured browser failure reports for a coding-agent repair turn.",
   { previewId: external_exports.string().min(1) },
   async ({ previewId }) => {
     const preview = getPreview(previewId);

@@ -102,7 +102,9 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 - Inspect and validate a local application start command without executing it.
 - Serve the app at a local proxy URL and inject the DemoFlow client overlay at runtime.
 - Highlight elements using accessible selectors, labels, or existing test IDs.
+- Present the walkthrough with a product-facing default theme, plus quiet and debug variants chosen in the saved demo spec.
 - Advance based on user interaction or observable UI state.
+- Wait briefly for the next step to mount after a real interaction before treating a React/Next.js conditional screen as a broken target.
 - Write a portable `demo.spec.json` file.
 - Provide overlay controls to skip, restart, or edit tooltip text during the local session.
 - Report selector and state-resolution failures back to Codex.
@@ -195,7 +197,7 @@ The proxy does not infer product intent from the page alone. It serves the live 
 
 The MCP server exposes no generic shell-command tool and never starts a target-app process. `prepare_app_start` only returns a command selected from declared project scripts. Codex executes that returned command in its normal terminal session, which surfaces the native approve / deny / explain approval prompt. Codex owns the resulting app process and can stop it through the same session.
 
-A preview is a one-shot handoff. Once its local URL is returned, the developer uses it directly; Codex does not open the in-app browser to re-check the walkthrough or poll it for completion. If the app or preview has stopped, the current request ends with that status. DemoFlow only retries after the developer explicitly asks, preventing repeated restart and permission loops.
+A preview is a one-shot handoff. Once its local URL is returned, the developer uses it directly; Codex does not open the in-app browser to re-check the walkthrough or poll it for completion. A browser failure is saved as a structured local repair report. When the developer asks Codex to repair the demo, it reads that report and fixes the affected step; an MCP server cannot wake an already-completed Codex task automatically. DemoFlow only retries after the developer explicitly asks, preventing repeated restart and permission loops.
 
 ## 11. Demo planning and execution
 
@@ -206,7 +208,7 @@ Codex produces a JSON specification before the live preview opens. Each step has
 - safe input values, if any
 - expected observable result
 
-Every step must identify one concrete element. DemoFlow prefers stable test IDs; when a repeated control has the same visible name, the spec also records the surrounding card title so the overlay can attach to the intended action.
+Every step must identify one concrete element. DemoFlow prefers stable test IDs; when a repeated control has the same visible name, the spec also records the surrounding card title so the overlay can attach to the intended action. If the requested flow explicitly means the first repeated control and no stable card title exists, Codex records its one-based occurrence so that selection is visible and deterministic.
 - tooltip title and explanation
 - risk level
 
@@ -216,7 +218,7 @@ DemoFlow validates the specification before opening the preview:
 - block remote URLs unless explicitly approved
 - reject secret-like inputs and real payment actions
 - require confirmation for sign-up, email, deletion, or external side effects unless a fixture mode is active
-- report a missing target or unmet advance condition to Codex with the current URL and accessibility snapshot needed to repair the specification
+- retain a missing target or unmet advance condition as a structured local repair report (step, path, intended target, and reason) for Codex to read in the next explicit repair turn
 
 ## 12. Success criteria
 

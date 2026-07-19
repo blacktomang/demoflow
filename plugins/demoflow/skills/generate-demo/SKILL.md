@@ -16,6 +16,8 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 5. Describe a short linear journey using only targets found in the returned application map.
    - Every target must resolve to one element. Never use a generic repeated role/name such as `Join` alone.
    - Prefer a `testId`. If a repeated button has no test ID, use a role/name target with `withinText` set to the surrounding card's visible challenge title.
+   - If the requested journey intentionally uses the first or another ordered repeated control and no reliable card title is available, record `occurrence` (one-based) in that role/name target. This makes the coding agent's selection explicit and lets the overlay attach to that exact DOM-order match.
+   - Default `presentation.theme` to `presenter`: it is the product-facing walkthrough for product, customer, and stakeholder demos. Use `minimal` only when the developer asks for a quieter overlay; reserve `debug` for internal development or selector repair.
 6. Write a versioned `demo.spec.json` using `demoflow.write_spec`; it saves a compact app-map snapshot and fingerprint beside the spec.
 7. Call `demoflow.prepare_app_start` for a declared package script and the expected loopback URL. Do not ask for a separate prose confirmation.
 8. Run the returned exact command once with Codex's terminal tool in the returned working directory. This must trigger Codex's native command-approval prompt; never bypass it by running the development command from MCP.
@@ -23,7 +25,7 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 10. Explain that the preview is the real app, augmented by a temporary overlay; the user clicks and fills the real UI.
 11. Do not open, inspect, or exercise the preview in Codex's in-app browser unless the user explicitly asks for browser testing. Do not poll `open_preview` to decide whether the workflow is complete.
 12. If the app process or preview stops, report that it stopped and end the workflow. Never automatically reuse, recreate, or restart a preview or app process. Only make another attempt after the user explicitly asks to retry.
-13. On a missing target, inspect the reported state, revise only the affected step, and rewrite the spec.
+13. When the developer reports a Demo Mode error or asks to repair a demo, call `demoflow.open_preview` with the active preview ID. Read its structured browser failure report, revise only the affected step, and rewrite the spec. Do not poll this tool while the developer is using the preview.
 14. Stop the preview with `demoflow.stop` when the user finishes. Codex owns the development-server process and stops it through the same terminal session.
 
 ## Constraints

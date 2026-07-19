@@ -82,7 +82,7 @@ server.tool(
 
 server.tool(
   "open_preview",
-  "Return the active local Demo Mode URL and its status.",
+  "Return the active local Demo Mode URL, including structured browser failure reports for a coding-agent repair turn.",
   { previewId: z.string().min(1) },
   async ({ previewId }) => {
     const preview = getPreview(previewId);

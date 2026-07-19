@@ -5,7 +5,7 @@ import type { AppMap } from "./inspector.js";
 
 const TargetSchema = z.union([
   z.object({ testId: z.string().min(1) }),
-  z.object({ role: z.string().min(1), name: z.string().min(1), withinText: z.string().min(1).optional() }),
+  z.object({ role: z.string().min(1), name: z.string().min(1), withinText: z.string().min(1).optional(), occurrence: z.number().int().min(1).optional() }),
   z.object({ label: z.string().min(1) }),
   z.object({ css: z.string().min(1) }),
 ]);
@@ -17,12 +17,17 @@ const AdvanceSchema = z.union([
   z.object({ type: z.literal("manual") }),
 ]);
 
+const PresentationSchema = z.object({
+  theme: z.enum(["presenter", "minimal", "debug"]),
+});
+
 export const DemoSpecSchema = z.object({
   version: z.literal(1),
   id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   title: z.string().min(1),
   goal: z.string().min(1),
   startPath: z.string().startsWith("/"),
+  presentation: PresentationSchema.optional(),
   metadata: z.object({
     appFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
     savedAt: z.string().datetime(),

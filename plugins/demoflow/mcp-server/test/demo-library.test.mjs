@@ -34,3 +34,21 @@ test("saves a shareable app-map snapshot and lists the saved demo", async () => 
   assert.equal(snapshot.workspacePath, undefined);
   assert.equal(snapshot.fingerprint, appMap.fingerprint);
 });
+
+test("accepts an explicit occurrence for an ordered repeated control", async () => {
+  const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-occurrence-"));
+  const appMap = { workspacePath, ...appMapData, fingerprint: fingerprintAppMap(appMapData) };
+  await writeDemoSpec(workspacePath, {
+    version: 1,
+    id: "first-join",
+    title: "First join",
+    goal: "Choose the first visible challenge",
+    startPath: "/community",
+    presentation: { theme: "presenter" },
+    steps: [{ id: "first-join", target: { role: "button", name: "Join", occurrence: 1 }, tooltip: { title: "Join", body: "Choose the first challenge." }, advance: { type: "click-target" } }],
+  }, appMap);
+
+  const spec = await readDemoSpec(workspacePath, "first-join");
+  assert.equal(spec.steps[0].target.occurrence, 1);
+  assert.equal(spec.presentation?.theme, "presenter");
+});

@@ -50,14 +50,18 @@ test("serves the spec and overlay from reserved local paths", async () => {
   assert.match(overlay, /__demoflow_root/);
 });
 
-test("records missing targets without forwarding the status request to the app", async () => {
+test("records a structured browser failure without forwarding the status request to the app", async () => {
   const response = await fetch(`${preview.url}/__demoflow/status`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ missingTarget: "cta" }),
+    body: JSON.stringify({ missingTarget: "cta", failure: { type: "target-unavailable", stepId: "cta", path: "/", target: { testId: "cta" }, occurredAt: "2026-07-20T00:00:00.000Z" }, diagnostic: { kind: "app-alert", path: "/", message: "JSON.parse: unexpected end of data", occurredAt: "2026-07-20T00:00:01.000Z" } }),
   });
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { missingTargets: ["cta"] });
+  assert.deepEqual(await response.json(), {
+    missingTargets: ["cta"],
+    failures: [{ type: "target-unavailable", stepId: "cta", path: "/", target: { testId: "cta" }, occurredAt: "2026-07-20T00:00:00.000Z" }],
+    diagnostics: [{ kind: "app-alert", path: "/", message: "JSON.parse: unexpected end of data", occurredAt: "2026-07-20T00:00:01.000Z" }],
+  });
   const unknown = await fetch(`${preview.url}/__demoflow/unknown`);
   assert.equal(unknown.status, 404);
 });

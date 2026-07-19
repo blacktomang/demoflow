@@ -38,6 +38,14 @@ Start a new Codex task after installation so its DemoFlow skill and MCP tools ar
 
 DemoFlow never uploads project source code to a DemoFlow service, does not require an account or payment, and does not permanently modify application source. It writes only local `.demoflow/` artifacts and injects the temporary overlay through a second loopback-only localhost URL.
 
+### Repeated buttons
+
+Codex chooses a repeated control while creating the saved demo spec. It prefers a test ID, then the visible title of the surrounding card. When the requested flow explicitly means the first (or another ordered) repeated control and no stable card title exists, the spec records a one-based `occurrence`; DemoFlow then attaches to that deterministic match rather than stopping the demo.
+
+### Walkthrough themes
+
+DemoFlow defaults to `presenter`: a quiet, product-facing walkthrough intended for product reviews, stakeholder demos, and customers. A developer can ask Codex for `minimal` when the app should take almost all the visual attention, or `debug` for high-contrast selector repair. The selected theme is saved in `demo.spec.json` under `presentation.theme`; it changes only the injected overlay, never the host app.
+
 ### Saved demos and freshness
 
 Each saved demo contains an editable `demo.spec.json` and a small, shareable `app-map.json` snapshot. The snapshot contains framework hints, scripts, routes, test IDs, labels, and a SHA-256 fingerprint—never raw source files, local paths, form data, or credentials.
@@ -47,6 +55,12 @@ Running a saved demo uses its existing spec and does not re-inspect the project.
 DemoFlow runs its bundled runtime with the developer's own Node.js 20+ installation. It detects a missing or outdated Node.js version and prints a clear fix; it never depends on an internal ChatGPT/Codex Node runtime.
 
 DemoFlow validates that the target app is reachable before it creates a preview. Use the exact `Local:` URL printed by the app's dev server; `localhost` and `127.0.0.1` are both loopback addresses but can be served differently by local tooling.
+
+DemoFlow supports React and Next.js UI that mounts conditionally after an action. When the next target is not in the DOM yet, the overlay waits and retries for up to five seconds before it reports a failed step.
+
+### Repairing a browser failure
+
+If Demo Mode says a target is unavailable or ambiguous, tell Codex: `Repair this DemoFlow preview.` The browser has already saved a local report containing the failed step, target, route, and reason, plus bounded diagnostics from app error banners, browser errors, and unhandled rejections. Codex reads that report and updates only the broken step. It cannot repair silently while you are in the browser because an MCP server cannot wake a completed Codex task; this avoids hidden retries and unwanted restarts.
 
 ## Install and test from a local checkout
 

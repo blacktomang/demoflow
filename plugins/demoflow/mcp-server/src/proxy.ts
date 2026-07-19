@@ -6,7 +6,11 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { DemoSpecSchema, type DemoSpec } from "./spec.js";
 
-type Preview = { id: string; url: string; baseUrl: string; workspacePath: string; demoId: string; server: ReturnType<typeof createServer>; status: { missingTargets: string[] } };
+type DemoTarget = DemoSpec["steps"][number]["target"];
+type PreviewFailure = { type: "target-unavailable" | "ambiguous-target"; stepId: string; path: string; target: DemoTarget; occurredAt: string };
+type PreviewDiagnostic = { kind: "app-alert" | "window-error" | "unhandled-rejection"; path: string; message: string; occurredAt: string };
+type PreviewStatus = { missingTargets: string[]; failures: PreviewFailure[]; diagnostics: PreviewDiagnostic[] };
+type Preview = { id: string; url: string; baseUrl: string; workspacePath: string; demoId: string; server: ReturnType<typeof createServer>; status: PreviewStatus };
 const previews = new Map<string, Preview>();
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 const overlayDirectoryCandidate = [path.resolve(moduleDirectory, "../overlay"), path.resolve(moduleDirectory, "../../overlay")]
@@ -64,8 +68,16 @@ async function serveReserved(preview: Preview, request: IncomingMessage, respons
       let body = "";
       for await (const chunk of request) body += chunk;
       try {
-        const report = JSON.parse(body) as { missingTarget?: string };
+        const report = JSON.parse(body) as { missingTarget?: string; failure?: PreviewFailure; diagnostic?: PreviewDiagnostic };
         if (report.missingTarget) preview.status.missingTargets.push(report.missingTarget);
+        if (report.failure?.stepId && report.failure.path && report.failure.target && ["target-unavailable", "ambiguous-target"].includes(report.failure.type)) {
+          const duplicate = preview.status.failures.some((failure) => failure.stepId === report.failure?.stepId && failure.path === report.failure?.path && failure.type === report.failure?.type);
+          if (!duplicate) preview.status.failures.push(report.failure);
+        }
+        if (report.diagnostic?.path && report.diagnostic.message && report.diagnostic.message.length <= 280 && ["app-alert", "window-error", "unhandled-rejection"].includes(report.diagnostic.kind)) {
+          const duplicate = preview.status.diagnostics.some((diagnostic) => diagnostic.path === report.diagnostic?.path && diagnostic.message === report.diagnostic?.message && diagnostic.kind === report.diagnostic?.kind);
+          if (!duplicate) preview.status.diagnostics.push(report.diagnostic);
+        }
       } catch {
         response.writeHead(400, { "content-type": "application/json" });
         response.end(JSON.stringify({ error: "Invalid DemoFlow status payload" }));
@@ -107,7 +119,7 @@ async function forward(preview: Preview, request: IncomingMessage, response: Ser
 export async function createPreview(input: { workspacePath: string; baseUrl: string; demoId: string }): Promise<Pick<Preview, "id" | "url">> {
   await assertUpstreamReachable(input.baseUrl);
   const id = randomUUID();
-  const preview = { id, baseUrl: input.baseUrl, demoId: input.demoId, workspacePath: input.workspacePath, status: { missingTargets: [] as string[] } } as Preview;
+  const preview = { id, baseUrl: input.baseUrl, demoId: input.demoId, workspacePath: input.workspacePath, status: { missingTargets: [] as string[], failures: [] as PreviewFailure[], diagnostics: [] as PreviewDiagnostic[] } } as Preview;
   preview.server = createServer(async (request, response) => {
     try {
       if (await serveReserved(preview, request, response)) return;
@@ -125,10 +137,10 @@ export async function createPreview(input: { workspacePath: string; baseUrl: str
   return { id, url: preview.url };
 }
 
-export function getPreview(id: string): { id: string; url: string; baseUrl: string; demoId: string; missingTargets: string[] } {
+export function getPreview(id: string): { id: string; url: string; baseUrl: string; demoId: string; missingTargets: string[]; failures: PreviewFailure[]; diagnostics: PreviewDiagnostic[] } {
   const preview = previews.get(id);
   if (!preview) throw new Error(`Unknown DemoFlow preview: ${id}`);
-  return { id: preview.id, url: preview.url, baseUrl: preview.baseUrl, demoId: preview.demoId, missingTargets: preview.status.missingTargets };
+  return { id: preview.id, url: preview.url, baseUrl: preview.baseUrl, demoId: preview.demoId, missingTargets: preview.status.missingTargets, failures: preview.status.failures, diagnostics: preview.status.diagnostics };
 }
 
 export async function stopPreview(id: string): Promise<void> {

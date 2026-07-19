@@ -65,7 +65,7 @@ No generic shell-command tool is exposed to the model. The MCP server never exec
 
 ### Preview lifecycle
 
-Creating a preview is a one-shot handoff: once `create_preview` returns its URL, Codex gives that URL to the developer and finishes the request. Codex must not use an in-app browser or repeated `open_preview` calls as a completion check. If either the target app or preview exits, DemoFlow reports the stopped state and waits for an explicit developer request before trying again. It never silently recreates a preview or asks for a separate prose permission to do so.
+Creating a preview is a one-shot handoff: once `create_preview` returns its URL, Codex gives that URL to the developer and finishes the request. Codex must not use an in-app browser or repeated `open_preview` calls as a completion check. Browser failures are retained as structured local reports; on the developer's explicit “repair” request, Codex reads the report through `open_preview` and fixes only the failed step. MCP cannot wake or message an already-completed Codex task, so DemoFlow never silently retries or recreates a preview.
 
 ## 5. Specification format
 
@@ -76,6 +76,7 @@ type DemoSpec = {
   title: string;
   goal: string;
   startPath: string;
+  presentation?: { theme: "presenter" | "minimal" | "debug" };
   steps: DemoStep[];
 };
 
@@ -89,7 +90,7 @@ type DemoStep = {
 
 type Target =
   | { testId: string }
-  | { role: string; name: string; withinText?: string }
+  | { role: string; name: string; withinText?: string; occurrence?: number }
   | { label: string }
   | { css: string };
 
@@ -100,7 +101,9 @@ type AdvanceCondition =
   | { type: "manual" };
 ```
 
-Target resolution priority is `testId`, `role/name`, `label`, then CSS. A target must resolve to exactly one element. For repeated controls such as `Join`, the spec must use a stable test ID or include `withinText` with the visible card title. Generated CSS selectors must be avoided unless no semantic target is available.
+Target resolution priority is `testId`, `role/name`, `label`, then CSS. A target must resolve to exactly one element. For repeated controls such as `Join`, the spec should use a stable test ID or include `withinText` with the visible card title. `withinText` resolves against the closest containing card, not a page-wide ancestor. When the intended journey explicitly calls for the first (or another ordered) repeated control and no reliable card title exists, Codex records a one-based `occurrence` to make that choice deterministic. Generated CSS selectors must be avoided unless no semantic target is available.
+
+`presentation.theme` controls only the temporary overlay: `presenter` is the default, product-facing warm-neutral walkthrough; `minimal` is a quieter neutral treatment; `debug` retains a high-contrast engineering surface for selector repair. Themes never alter the host application.
 
 ## 6. Local proxy behavior
 
@@ -136,9 +139,9 @@ The overlay has three layers:
 
 The dimmer and target highlight use `pointer-events: none`; the real app stays interactive. The control bar alone uses `pointer-events: auto`. If an exact target is outside the viewport, the overlay scrolls it into view before positioning the tooltip beside it. Restart returns to the configured `startPath`; it never attempts to undo arbitrary application state step by step.
 
-The overlay listens for `click`, `input`, `submit`, `popstate`, and URL changes. It resolves the next step after the configured `advance` condition becomes true. A `MutationObserver` retries target lookup for up to five seconds after navigation or a condition change.
+The overlay listens for `click`, `input`, `submit`, `popstate`, and URL changes. It resolves the next step after the configured `advance` condition becomes true. For a next-step target that is not yet mounted, it shows a neutral waiting state and retries after DOM mutations and on a short timer for up to five seconds. Only then does it show and report a target failure. This supports React and Next.js conditional rendering, client transitions, and asynchronous state updates without treating them as immediate errors.
 
-When a target cannot be found, show a non-blocking "Target unavailable" panel with Exit and Skip controls, and report the target ID/path to the MCP status endpoint. When more than one control matches, show a "Target needs a clearer label" panel rather than choosing an arbitrary element.
+When a target cannot be found, show a non-blocking "Target unavailable" panel with Exit and Skip controls, and report a structured local failure to the MCP status endpoint: failure type, step ID, current path, intended target, and timestamp. The overlay also reports window errors, unhandled rejections, and diagnostic text from explicit app alert elements (`[role=alert]`, `.alert`, or `[data-demoflow-error]`). Messages are capped at 280 characters and redact email addresses and token-like values; no arbitrary DOM, form values, cookies, or credentials are collected. When more than one control matches without an explicit `occurrence`, show a "Target needs a clearer label" panel rather than choosing an arbitrary element.
 
 ## 8. Local source inspection
 
