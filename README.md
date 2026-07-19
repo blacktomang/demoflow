@@ -20,7 +20,7 @@ DemoFlow is intended to be installed through Codex as a plugin. Once published, 
 
 There is no DemoFlow account, SaaS dashboard, source upload, or per-demo payment. The plugin bundles its MCP runtime; users should not need `pnpm install`.
 
-The macOS Codex Desktop build launches the bundled MCP runtime with the Node.js runtime shipped inside ChatGPT, so users do not need a separate Node or package-manager installation. Codex marketplace publication is still pending; until then, the plugin is installed from its released plugin bundle.
+DemoFlow runs its bundled runtime with the developer's own Node.js 20+ installation. It checks for Node.js automatically and prints a clear fix when Node.js is missing or too old. It never depends on an internal ChatGPT/Codex Node runtime.
 
 ## Install and test locally
 
@@ -38,7 +38,7 @@ Use DemoFlow to inspect this project and create the onboarding guided demo.
 Use the dev package script and the existing .demoflow/onboarding/demo.spec.json fixture.
 ```
 
-DemoFlow will ask for approval before starting the project `dev` script. It should return a local Demo Mode URL; open that URL and click through the real onboarding flow. On macOS Codex Desktop, the plugin uses ChatGPT's bundled Node.js runtime, so no DemoFlow package-manager install is required.
+DemoFlow will ask for approval before starting the project `dev` script. It should return a local Demo Mode URL; open that URL and click through the real onboarding flow. Node.js 20+ must be available as `node` in the environment that starts Codex; no DemoFlow package-manager install is required.
 
 ### Contributor checks
 
