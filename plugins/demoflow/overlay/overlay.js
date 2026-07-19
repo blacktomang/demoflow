@@ -1,5 +1,5 @@
 (() => {
-  const state = { spec: null, index: 0, target: null, observer: null };
+  const state = { spec: null, index: 0, target: null, markedTarget: null, skippedStep: null, observer: null };
   const root = document.createElement("div");
   root.id = "__demoflow_root";
   root.innerHTML = `
@@ -17,7 +17,7 @@
       #__demoflow_empty { position: fixed; top: 16px; right: 16px; width: 280px; padding: 16px; color: white; background: #7f1d1d; border-radius: 12px; pointer-events: auto; }
     </style>
     <div id="__demoflow_dim"></div><div id="__demoflow_halo"></div>
-    <aside id="__demoflow_card"><h2></h2><p></p><div id="__demoflow_controls"><button data-action="restart">Restart</button><button data-action="skip">Skip</button><span id="__demoflow_progress"></span><button data-action="exit">Exit demo</button></div></aside>`;
+    <aside id="__demoflow_card" role="status"><h2></h2><p></p><div id="__demoflow_controls"><button data-action="restart">Restart</button><button data-action="skip">Skip instruction</button><span id="__demoflow_progress"></span><button data-action="exit">Exit demo</button></div></aside>`;
   document.documentElement.append(root);
 
   const card = root.querySelector("#__demoflow_card");
@@ -26,12 +26,32 @@
   const body = card.querySelector("p");
   const progress = root.querySelector("#__demoflow_progress");
 
+  function normalizedName(value) {
+    return (value || "").replace(/[\u00a0\s]+/g, " ").replace(/[→↗›»]+\s*$/, "").trim().toLocaleLowerCase();
+  }
+
   function findTarget(target) {
     if (target.testId) return document.querySelector(`[data-testid="${CSS.escape(target.testId)}"]`);
     if (target.label) return [...document.querySelectorAll("label")].find((node) => node.textContent.trim() === target.label) || document.querySelector(`[aria-label="${CSS.escape(target.label)}"]`);
-    if (target.role && target.name) return [...document.querySelectorAll(`[role="${CSS.escape(target.role)}"], ${target.role}`)].find((node) => node.textContent.trim() === target.name || node.getAttribute("aria-label") === target.name);
+    if (target.role && target.name) {
+      const selector = `[role="${CSS.escape(target.role)}"], ${CSS.escape(target.role)}`;
+      const expected = normalizedName(target.name);
+      return [...document.querySelectorAll(selector)].find((node) => normalizedName(node.getAttribute("aria-label") || node.textContent) === expected);
+    }
     if (target.css) return document.querySelector(target.css);
     return null;
+  }
+
+  function clearTargetMarker() {
+    state.markedTarget?.removeAttribute("data-demoflow-target");
+    state.markedTarget = null;
+  }
+
+  function markTarget(target, step) {
+    if (state.markedTarget === target && target.getAttribute("data-demoflow-target") === step.id) return;
+    clearTargetMarker();
+    target.setAttribute("data-demoflow-target", step.id);
+    state.markedTarget = target;
   }
 
   function reportMissing(step) {
@@ -40,11 +60,18 @@
 
   function clearEmpty() { root.querySelector("#__demoflow_empty")?.remove(); }
   function showEmpty(step) {
+    clearTargetMarker();
     root.querySelector("#__demoflow_card").style.display = "none";
     root.querySelector("#__demoflow_halo").style.display = "none";
+    const waitingForSkippedStep = state.skippedStep && state.index > 0;
     const panel = document.createElement("div"); panel.id = "__demoflow_empty";
-    panel.innerHTML = `<strong>Target unavailable</strong><p>DemoFlow could not find “${step.id}” on this screen.</p><button>Skip step</button> <button>Exit</button>`;
-    panel.querySelectorAll("button")[0].onclick = () => { state.index += 1; render(); };
+    panel.innerHTML = waitingForSkippedStep
+      ? `<strong>Complete the previous action first</strong><p>“${step.tooltip.title}” appears after “${state.skippedStep.tooltip.title}” is completed in the real app. Skipping only hides guidance; it does not perform the action.</p><button>Show previous instruction</button> <button>Exit</button>`
+      : `<strong>Target unavailable</strong><p>DemoFlow could not find “${step.id}” on this screen. The flow may need repair.</p><button>Restart demo</button> <button>Exit</button>`;
+    panel.querySelectorAll("button")[0].onclick = () => {
+      if (waitingForSkippedStep) { state.index -= 1; state.skippedStep = null; render(); }
+      else location.assign(state.spec.startPath);
+    };
     panel.querySelectorAll("button")[1].onclick = exit;
     root.append(panel); reportMissing(step);
   }
@@ -79,17 +106,17 @@
     if (step.path && location.pathname !== step.path) { showEmpty({ ...step, id: `${step.id} (waiting for ${step.path})` }); return; }
     const target = findTarget(step.target);
     if (!target) { showEmpty(step); return; }
-    state.target = target;
+    state.target = target; state.skippedStep = null; markTarget(target, step);
     card.style.display = "block"; title.textContent = step.tooltip.title; body.textContent = step.tooltip.body;
     progress.textContent = `${state.index + 1} / ${state.spec.steps.length}`;
     position(target);
   }
 
-  function exit() { state.observer?.disconnect(); root.remove(); }
+  function exit() { state.observer?.disconnect(); clearTargetMarker(); root.remove(); }
   root.addEventListener("click", (event) => {
     const action = event.target.closest("button")?.dataset.action;
     if (action === "exit") exit();
-    if (action === "skip") { state.index += 1; render(); }
+    if (action === "skip") { state.skippedStep = state.spec.steps[state.index]; state.index += 1; render(); }
     if (action === "restart") location.assign(state.spec.startPath);
   });
   document.addEventListener("click", advanceIfReady, true);

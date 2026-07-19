@@ -49,3 +49,15 @@ test("serves the spec and overlay from reserved local paths", async () => {
   assert.equal(spec.steps[0].id, "cta");
   assert.match(overlay, /__demoflow_root/);
 });
+
+test("records missing targets without forwarding the status request to the app", async () => {
+  const response = await fetch(`${preview.url}/__demoflow/status`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ missingTarget: "cta" }),
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { missingTargets: ["cta"] });
+  const unknown = await fetch(`${preview.url}/__demoflow/unknown`);
+  assert.equal(unknown.status, 404);
+});

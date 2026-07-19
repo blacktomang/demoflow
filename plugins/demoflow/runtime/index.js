@@ -21255,6 +21255,7 @@ function safeHeaders(headers, modified = false) {
 }
 async function serveReserved(preview, request, response) {
   const pathname = new URL(request.url ?? "/", preview.url).pathname;
+  if (!pathname.startsWith("/__demoflow/")) return false;
   if (pathname === "/__demoflow/spec.json") {
     const actualPath = path4.join(preview.workspacePath, ".demoflow", preview.demoId, "demo.spec.json");
     const parsed = DemoSpecSchema.parse(JSON.parse(await readFile3(actualPath, "utf8")));
@@ -21271,14 +21272,22 @@ async function serveReserved(preview, request, response) {
     if (request.method === "POST") {
       let body = "";
       for await (const chunk of request) body += chunk;
-      const report = JSON.parse(body);
-      if (report.missingTarget) preview.status.missingTargets.push(report.missingTarget);
+      try {
+        const report = JSON.parse(body);
+        if (report.missingTarget) preview.status.missingTargets.push(report.missingTarget);
+      } catch {
+        response.writeHead(400, { "content-type": "application/json" });
+        response.end(JSON.stringify({ error: "Invalid DemoFlow status payload" }));
+        return true;
+      }
     }
     response.writeHead(200, { "content-type": "application/json" });
     response.end(JSON.stringify(preview.status));
     return true;
   }
-  return false;
+  response.writeHead(404, { "content-type": "application/json" });
+  response.end(JSON.stringify({ error: "Unknown DemoFlow local endpoint" }));
+  return true;
 }
 async function forward(preview, request, response) {
   const upstream = loopbackUrl(preview.baseUrl);
