@@ -12,6 +12,8 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 1. Use Codex's terminal tool to run `node --version`. If Node.js is missing or below 20, explain the prerequisite and stop before calling DemoFlow MCP tools.
 2. Call `demoflow.inspect_project` before proposing a flow.
 3. Describe a short linear journey using only targets found in the returned application map.
+   - Every target must resolve to one element. Never use a generic repeated role/name such as `Join` alone.
+   - Prefer a `testId`. If a repeated button has no test ID, use a role/name target with `withinText` set to the surrounding card's visible challenge title.
 4. Write a versioned `demo.spec.json` using `demoflow.write_spec`.
 5. Call `demoflow.prepare_app_start` for a declared package script and the expected loopback URL. Do not ask for a separate prose confirmation.
 6. Run the returned exact command once with Codex's terminal tool in the returned working directory. This must trigger Codex's native command-approval prompt; never bypass it by running the development command from MCP.

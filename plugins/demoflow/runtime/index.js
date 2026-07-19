@@ -21154,7 +21154,7 @@ import { mkdir as mkdir2, writeFile as writeFile2 } from "node:fs/promises";
 import path2 from "node:path";
 var TargetSchema = external_exports.union([
   external_exports.object({ testId: external_exports.string().min(1) }),
-  external_exports.object({ role: external_exports.string().min(1), name: external_exports.string().min(1) }),
+  external_exports.object({ role: external_exports.string().min(1), name: external_exports.string().min(1), withinText: external_exports.string().min(1).optional() }),
   external_exports.object({ label: external_exports.string().min(1) }),
   external_exports.object({ css: external_exports.string().min(1) })
 ]);

@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const TargetSchema = z.union([
   z.object({ testId: z.string().min(1) }),
-  z.object({ role: z.string().min(1), name: z.string().min(1) }),
+  z.object({ role: z.string().min(1), name: z.string().min(1), withinText: z.string().min(1).optional() }),
   z.object({ label: z.string().min(1) }),
   z.object({ css: z.string().min(1) }),
 ]);

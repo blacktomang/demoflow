@@ -87,7 +87,7 @@ type DemoStep = {
 
 type Target =
   | { testId: string }
-  | { role: string; name: string }
+  | { role: string; name: string; withinText?: string }
   | { label: string }
   | { css: string };
 
@@ -98,7 +98,7 @@ type AdvanceCondition =
   | { type: "manual" };
 ```
 
-Target resolution priority is `testId`, `role/name`, `label`, then CSS. Generated CSS selectors must be avoided unless no semantic target is available.
+Target resolution priority is `testId`, `role/name`, `label`, then CSS. A target must resolve to exactly one element. For repeated controls such as `Join`, the spec must use a stable test ID or include `withinText` with the visible card title. Generated CSS selectors must be avoided unless no semantic target is available.
 
 ## 6. Local proxy behavior
 
@@ -132,11 +132,11 @@ The overlay has three layers:
 2. A tooltip anchored beside the target.
 3. A compact control bar: Restart, Skip, Exit, and step count.
 
-The dimmer and target highlight use `pointer-events: none`; the real app stays interactive. The control bar alone uses `pointer-events: auto`. Restart returns to the configured `startPath`; it never attempts to undo arbitrary application state step by step.
+The dimmer and target highlight use `pointer-events: none`; the real app stays interactive. The control bar alone uses `pointer-events: auto`. If an exact target is outside the viewport, the overlay scrolls it into view before positioning the tooltip beside it. Restart returns to the configured `startPath`; it never attempts to undo arbitrary application state step by step.
 
 The overlay listens for `click`, `input`, `submit`, `popstate`, and URL changes. It resolves the next step after the configured `advance` condition becomes true. A `MutationObserver` retries target lookup for up to five seconds after navigation or a condition change.
 
-When a target cannot be found, show a non-blocking "Target unavailable" panel with Exit and Skip controls, and report the target ID/path to the MCP status endpoint.
+When a target cannot be found, show a non-blocking "Target unavailable" panel with Exit and Skip controls, and report the target ID/path to the MCP status endpoint. When more than one control matches, show a "Target needs a clearer label" panel rather than choosing an arbitrary element.
 
 ## 8. Local source inspection
 

@@ -30,16 +30,30 @@
     return (value || "").replace(/[\u00a0\s]+/g, " ").replace(/[→↗›»]+\s*$/, "").trim().toLocaleLowerCase();
   }
 
-  function findTarget(target) {
-    if (target.testId) return document.querySelector(`[data-testid="${CSS.escape(target.testId)}"]`);
-    if (target.label) return [...document.querySelectorAll("label")].find((node) => node.textContent.trim() === target.label) || document.querySelector(`[aria-label="${CSS.escape(target.label)}"]`);
-    if (target.role && target.name) {
+  function resolveTarget(target) {
+    let candidates = [];
+    if (target.testId) candidates = [...document.querySelectorAll(`[data-testid="${CSS.escape(target.testId)}"]`)];
+    else if (target.label) candidates = [
+      ...[...document.querySelectorAll("label")].filter((node) => node.textContent.trim() === target.label),
+      ...document.querySelectorAll(`[aria-label="${CSS.escape(target.label)}"]`),
+    ];
+    else if (target.role && target.name) {
       const selector = `[role="${CSS.escape(target.role)}"], ${CSS.escape(target.role)}`;
       const expected = normalizedName(target.name);
-      return [...document.querySelectorAll(selector)].find((node) => normalizedName(node.getAttribute("aria-label") || node.textContent) === expected);
+      candidates = [...document.querySelectorAll(selector)].filter((node) => normalizedName(node.getAttribute("aria-label") || node.textContent) === expected);
+      if (target.withinText) {
+        const context = normalizedName(target.withinText);
+        candidates = candidates.filter((node) => {
+          for (let ancestor = node.parentElement; ancestor && ancestor !== document.body; ancestor = ancestor.parentElement) {
+            if (normalizedName(ancestor.textContent).includes(context)) return true;
+          }
+          return false;
+        });
+      }
     }
-    if (target.css) return document.querySelector(target.css);
-    return null;
+    else if (target.css) candidates = [...document.querySelectorAll(target.css)];
+    const unique = [...new Set(candidates)];
+    return { target: unique.length === 1 ? unique[0] : null, ambiguous: unique.length > 1 };
   }
 
   function clearTargetMarker() {
@@ -59,7 +73,7 @@
   }
 
   function clearEmpty() { root.querySelector("#__demoflow_empty")?.remove(); }
-  function showEmpty(step) {
+  function showEmpty(step, reason = "missing") {
     clearTargetMarker();
     root.querySelector("#__demoflow_card").style.display = "none";
     root.querySelector("#__demoflow_halo").style.display = "none";
@@ -67,6 +81,8 @@
     const panel = document.createElement("div"); panel.id = "__demoflow_empty";
     panel.innerHTML = waitingForSkippedStep
       ? `<strong>Complete the previous action first</strong><p>“${step.tooltip.title}” appears after “${state.skippedStep.tooltip.title}” is completed in the real app. Skipping only hides guidance; it does not perform the action.</p><button>Show previous instruction</button> <button>Exit</button>`
+      : reason === "ambiguous"
+        ? `<strong>Target needs a clearer label</strong><p>DemoFlow found more than one possible control for “${step.tooltip.title}”. Update this step with a test ID or the challenge title it belongs to.</p><button>Restart demo</button> <button>Exit</button>`
       : `<strong>Target unavailable</strong><p>DemoFlow could not find “${step.id}” on this screen. The flow may need repair.</p><button>Restart demo</button> <button>Exit</button>`;
     panel.querySelectorAll("button")[0].onclick = () => {
       if (waitingForSkippedStep) { state.index -= 1; state.skippedStep = null; render(); }
@@ -86,11 +102,18 @@
     card.style.top = `${top}px`; card.style.left = `${left}px`;
   }
 
+  function reveal(target) {
+    const rect = target.getBoundingClientRect();
+    if (rect.top < 16 || rect.bottom > window.innerHeight - 16 || rect.left < 16 || rect.right > window.innerWidth - 16) {
+      target.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+    }
+  }
+
   function conditionSatisfied(step, event) {
     if (step.advance.type === "manual") return false;
     if (step.advance.type === "click-target") return event?.target && state.target?.contains(event.target);
     if (step.advance.type === "path-is") return location.pathname === step.advance.path;
-    if (step.advance.type === "element-visible") return Boolean(findTarget(step.advance.target));
+    if (step.advance.type === "element-visible") return Boolean(resolveTarget(step.advance.target).target);
     return false;
   }
 
@@ -104,12 +127,13 @@
     if (!state.spec || state.index >= state.spec.steps.length) return exit();
     const step = state.spec.steps[state.index];
     if (step.path && location.pathname !== step.path) { showEmpty({ ...step, id: `${step.id} (waiting for ${step.path})` }); return; }
-    const target = findTarget(step.target);
-    if (!target) { showEmpty(step); return; }
+    const resolved = resolveTarget(step.target);
+    if (!resolved.target) { showEmpty(step, resolved.ambiguous ? "ambiguous" : "missing"); return; }
+    const target = resolved.target;
     state.target = target; state.skippedStep = null; markTarget(target, step);
     card.style.display = "block"; title.textContent = step.tooltip.title; body.textContent = step.tooltip.body;
     progress.textContent = `${state.index + 1} / ${state.spec.steps.length}`;
-    position(target);
+    reveal(target); requestAnimationFrame(() => position(target));
   }
 
   function exit() { state.observer?.disconnect(); clearTargetMarker(); root.remove(); }

@@ -202,6 +202,8 @@ Codex produces a JSON specification before the live preview opens. Each step has
 - action type and target description
 - safe input values, if any
 - expected observable result
+
+Every step must identify one concrete element. DemoFlow prefers stable test IDs; when a repeated control has the same visible name, the spec also records the surrounding card title so the overlay can attach to the intended action.
 - tooltip title and explanation
 - risk level
 
