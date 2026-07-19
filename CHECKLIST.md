@@ -44,15 +44,14 @@
 
 **Done when:** a valid spec is saved and an invalid spec returns a clear error.
 
-### 5. Safe local app lifecycle
+### 5. Native command approval handoff
 
-- [x] Implement `demoflow.start_app` with an explicit, user-approved package script only.
-- [x] Bind to local development URLs only.
-- [x] Poll a health URL with timeout and helpful failure output.
-- [x] Record only processes started by DemoFlow.
-- [x] Implement `demoflow.stop` with graceful shutdown.
+- [ ] Replace `demoflow.start_app` with `demoflow.prepare_app_start`; it must validate and return a declared script without executing it.
+- [ ] Update the skill so Codex runs that returned command in its own terminal session, triggering Codex's native approval prompt.
+- [ ] Keep DemoFlow limited to loopback preview proxy lifecycle; Codex owns the target app process.
+- [ ] Verify deny, approve, and adjustment paths in the Codex command-approval UI.
 
-**Done when:** the sample app starts, returns a URL, and is reliably cleaned up.
+**Done when:** the developer sees Codex's native approval UI before the target development script starts, and DemoFlow can create and stop a preview without owning that app process.
 
 ### 6. Local preview proxy
 

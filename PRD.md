@@ -95,10 +95,11 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 - Ask for or infer: goal, target duration, and local start command.
 - Keep the model plan structured and reviewable before actions run.
 - Call the local MCP tools rather than relying on prose-only instructions.
+- Return a validated app-start command to Codex; Codex executes it through its native command-approval UI so the developer can approve, deny, or explain an adjustment.
 
 ### Required local runtime behavior
 
-- Start and health-check a local application.
+- Inspect and validate a local application start command without executing it.
 - Serve the app at a local proxy URL and inject the DemoFlow client overlay at runtime.
 - Highlight elements using accessible selectors, labels, or existing test IDs.
 - Advance based on user interaction or observable UI state.
@@ -147,9 +148,11 @@ Selectors should be stored as a structured locator description where possible, r
 flowchart LR
   U["Developer prompt in Codex"] --> S["DemoFlow skill"]
   S --> C["Codex: analyze repository and author plan"]
+  C --> K["Codex native command approval"]
+  K --> A["Start local application"]
   C --> M["Local DemoFlow MCP server"]
-  M --> A["Start local application"]
   M --> P["DemoFlow local preview proxy"]
+  A --> P
   P --> O["Real app + injected overlay"]
   M --> E["Write demo spec"]
   E --> O
@@ -160,8 +163,8 @@ flowchart LR
 | Component | Responsibility |
 | --- | --- |
 | Codex plugin | Installation manifest, skill instructions, and MCP registration |
-| DemoFlow skill | Converts a user request into a constrained demo plan and oversees recovery |
-| Local MCP server | Safe, typed operations for project inspection, app lifecycle, spec generation, and preview control |
+| DemoFlow skill | Converts a user request into a constrained demo plan, requests Codex command approval, and oversees recovery |
+| Local MCP server | Safe, typed operations for project inspection, start-command preparation, spec generation, and preview control; it never starts the target app |
 | Local preview proxy | Proxies the dev server and injects the overlay without changing the project |
 | Overlay client | Renders highlights/tooltips and observes user interactions in the real app |
 
@@ -181,13 +184,13 @@ The proxy does not infer product intent from the page alone. It serves the live 
 | Tool | Purpose |
 | --- | --- |
 | `demoflow.inspect_project` | Return framework, scripts, routes, likely entry points, and existing E2E test hints |
-| `demoflow.start_app` | Start an approved local command and return a health-checked base URL |
+| `demoflow.prepare_app_start` | Validate a declared package script and return its exact command, working directory, and likely local URL without executing it |
 | `demoflow.create_preview` | Start a local reverse proxy that injects the DemoFlow overlay |
 | `demoflow.write_spec` | Save the reviewed structured demo specification |
 | `demoflow.open_preview` | Return the preview URL for the user to open in their browser |
-| `demoflow.stop_app` | Cleanly stop the process DemoFlow started |
+| `demoflow.stop` | Stop the DemoFlow preview proxy and discard its temporary state |
 
-The model must never receive unrestricted shell access through a generic `run_command` MCP tool. The runtime owns command allowlists, working directory boundaries, timeouts, and output paths.
+The MCP server exposes no generic shell-command tool and never starts a target-app process. `prepare_app_start` only returns a command selected from declared project scripts. Codex executes that returned command in its normal terminal session, which surfaces the native approve / deny / explain approval prompt. Codex owns the resulting app process and can stop it through the same session.
 
 ## 11. Demo planning and execution
 
@@ -232,7 +235,8 @@ The live demo should show, in under three minutes:
 
 - Plugin installs into Codex with documented steps.
 - Judge can run the included sample project and invoke DemoFlow without a hosted DemoFlow account.
-- `start_app` detects readiness or times out with a useful error.
+- Codex displays its native command approval before a target-app development script starts.
+- `prepare_app_start` returns only a declared package script and a bounded local URL hint.
 - The preview loads the actual app through the local proxy with an overlay visible.
 - The source tree remains unchanged before and after creating a demo, except for `.demoflow/` artifacts.
 - A missing target or unmet UI state results in a structured error report and no claim of a successful demo.
@@ -255,7 +259,7 @@ The live demo should show, in under three minutes:
 - Plugin manifest and `Generate demo` skill
 - TypeScript local MCP server scaffold
 - Sample Vite/React application with a four-step onboarding flow
-- `inspect_project`, `start_app`, and `stop_app`
+- `inspect_project`, `prepare_app_start`, and preview cleanup
 
 ### Milestone 2 — Real demo generation
 

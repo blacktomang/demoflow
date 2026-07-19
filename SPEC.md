@@ -10,13 +10,14 @@ It deliberately excludes Playwright, autonomous clicking, screenshots, and video
 
 1. The developer opens a repository in Codex and asks for a demo flow.
 2. The DemoFlow skill inspects local source files and writes `.demoflow/<demo-id>/demo.spec.json`.
-3. The MCP server starts the approved project development command and waits for its local URL.
-4. The MCP server starts a DemoFlow proxy on another local port.
-5. The developer opens the proxy URL, for example `http://127.0.0.1:4173`.
-6. The proxy fetches the original app HTML, injects the prebuilt overlay client, and forwards all app requests.
-7. The overlay resolves the current step target in the real DOM, highlights it, and displays a tooltip.
-8. The developer clicks and types in the real application. The overlay observes events and route changes, then advances when the step condition is met.
-9. The developer exits Demo Mode or the MCP server stops; the original app is unaffected.
+3. The MCP server validates a declared project development script and returns its exact command, working directory, and likely loopback URL without executing it.
+4. Codex runs that command in its terminal session. Codex displays its native approval prompt, so the developer can approve, deny, or give feedback before the app starts.
+5. Once the app is running, the MCP server starts a DemoFlow proxy on another local port.
+6. The developer opens the proxy URL, for example `http://127.0.0.1:4173`.
+7. The proxy fetches the original app HTML, injects the prebuilt overlay client, and forwards all app requests.
+8. The overlay resolves the current step target in the real DOM, highlights it, and displays a tooltip.
+9. The developer clicks and types in the real application. The overlay observes events and route changes, then advances when the step condition is met.
+10. The developer exits Demo Mode or stops the preview; the original app is unaffected. Codex owns the app process.
 
 ## 3. Repository layout
 
@@ -30,7 +31,7 @@ demoflow/
   mcp-server/
     src/
       index.ts
-      app-lifecycle.ts
+      start-command.ts
       proxy.ts
       spec.ts
       inspector.ts
@@ -53,12 +54,12 @@ The plugin skill must produce a reviewable `demo.spec.json` before opening the p
 | --- | --- | --- |
 | `demoflow.inspect_project` | workspace path | framework, scripts, route/component/test-id summary |
 | `demoflow.write_spec` | demo ID + validated spec | saved path |
-| `demoflow.start_app` | approved package script | process ID + base URL |
+| `demoflow.prepare_app_start` | declared package script | exact command, working directory, and likely local base URL; no process is started |
 | `demoflow.create_preview` | base URL + spec path | proxy preview URL |
 | `demoflow.open_preview` | preview ID | URL and current status |
-| `demoflow.stop` | app/preview ID | clean shutdown confirmation |
+| `demoflow.stop` | preview ID | proxy shutdown confirmation |
 
-No generic shell-command tool is exposed to the model. `start_app` may execute only a user-approved package script from the repository root.
+No generic shell-command tool is exposed to the model. The MCP server never executes a target-project command. After `prepare_app_start`, Codex runs the returned command in its own terminal session so its native approve / deny / explain prompt remains the security boundary.
 
 ## 5. Specification format
 
@@ -150,7 +151,7 @@ The scanner writes a compact `.demoflow/app-map.json`. Codex receives this map a
 - Bind servers to loopback only.
 - Never expose preview URLs on a LAN by default.
 - Do not upload project source, DOM snapshots, recordings, or artifacts to DemoFlow infrastructure; none exists in MVP.
-- Prompt before executing a dev script.
+- Require Codex's native command approval before executing a dev script.
 - Block non-local target URLs by default.
 - Never persist cookies, form values, or credentials in `demo.spec.json`.
 - Do not inject into production URLs.
@@ -159,14 +160,15 @@ The scanner writes a compact `.demoflow/app-map.json`. Codex receives this map a
 
 The included Vite sample app must pass these manual checks:
 
-1. `start_app` starts it and returns a valid local base URL.
-2. `create_preview` returns a separate local URL.
-3. Opening the preview displays an overlay over the real sample app.
-4. Clicking the highlighted real button changes the app state and advances the overlay.
-5. Navigating to another route preserves the overlay and displays the next step.
-6. Exit removes the overlay without stopping or altering the source app.
-7. Stopping DemoFlow terminates only processes it started.
-8. `git diff` after a run contains only ignored `.demoflow/` artifacts.
+1. `prepare_app_start` returns a declared script, working directory, and a valid local URL hint without starting a process.
+2. Codex displays its native command approval before starting the sample app.
+3. `create_preview` returns a separate local URL.
+4. Opening the preview displays an overlay over the real sample app.
+5. Clicking the highlighted real button changes the app state and advances the overlay.
+6. Navigating to another route preserves the overlay and displays the next step.
+7. Exit removes the overlay without stopping or altering the source app.
+8. Stopping DemoFlow stops only the proxy; Codex owns the app process.
+9. `git diff` after a run contains only ignored `.demoflow/` artifacts.
 
 ## 11. Deferred work
 
