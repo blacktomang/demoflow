@@ -21171,6 +21171,8 @@ var TargetSchema = external_exports.union([
 ]);
 var AdvanceSchema = external_exports.union([
   external_exports.object({ type: external_exports.literal("click-target") }),
+  external_exports.object({ type: external_exports.literal("input-target"), minLength: external_exports.number().int().min(1).optional() }),
+  external_exports.object({ type: external_exports.literal("input-and-click"), submitTarget: TargetSchema, minLength: external_exports.number().int().min(1).optional() }),
   external_exports.object({ type: external_exports.literal("path-is"), path: external_exports.string().startsWith("/") }),
   external_exports.object({ type: external_exports.literal("element-visible"), target: TargetSchema }),
   external_exports.object({ type: external_exports.literal("manual") })

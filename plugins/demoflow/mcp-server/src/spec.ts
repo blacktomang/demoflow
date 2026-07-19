@@ -12,6 +12,8 @@ const TargetSchema = z.union([
 
 const AdvanceSchema = z.union([
   z.object({ type: z.literal("click-target") }),
+  z.object({ type: z.literal("input-target"), minLength: z.number().int().min(1).optional() }),
+  z.object({ type: z.literal("input-and-click"), submitTarget: TargetSchema, minLength: z.number().int().min(1).optional() }),
   z.object({ type: z.literal("path-is"), path: z.string().startsWith("/") }),
   z.object({ type: z.literal("element-visible"), target: TargetSchema }),
   z.object({ type: z.literal("manual") }),

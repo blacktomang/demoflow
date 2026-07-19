@@ -104,6 +104,7 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 - Highlight elements using accessible selectors, labels, or existing test IDs.
 - Present the walkthrough with a product-facing default theme, plus quiet and debug variants chosen in the saved demo spec.
 - Advance based on user interaction or observable UI state.
+- Treat filling a form and clicking its real submit button as one walkthrough action; advance only after the meaningful value and actual submit click.
 - Wait briefly for the next step to mount after a real interaction before treating a React/Next.js conditional screen as a broken target.
 - Write a portable `demo.spec.json` file.
 - Provide overlay controls to skip, restart, or edit tooltip text during the local session.

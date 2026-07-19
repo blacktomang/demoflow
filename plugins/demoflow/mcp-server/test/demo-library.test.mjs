@@ -52,3 +52,21 @@ test("accepts an explicit occurrence for an ordered repeated control", async () 
   assert.equal(spec.steps[0].target.occurrence, 1);
   assert.equal(spec.presentation?.theme, "presenter");
 });
+
+test("accepts an input-and-submit step", async () => {
+  const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-input-"));
+  const appMap = { workspacePath, ...appMapData, fingerprint: fingerprintAppMap(appMapData) };
+  await writeDemoSpec(workspacePath, {
+    version: 1,
+    id: "write-checkin",
+    title: "Write a check-in",
+    goal: "Enter a short reflection",
+    startPath: "/",
+    steps: [{ id: "write", target: { label: "Check-in" }, tooltip: { title: "Write", body: "Add a note, then save it." }, advance: { type: "input-and-click", minLength: 3, submitTarget: { role: "button", name: "Save check-in" } } }],
+  }, appMap);
+
+  const spec = await readDemoSpec(workspacePath, "write-checkin");
+  assert.equal(spec.steps[0].advance.type, "input-and-click");
+  assert.equal(spec.steps[0].advance.minLength, 3);
+  assert.deepEqual(spec.steps[0].advance.submitTarget, { role: "button", name: "Save check-in" });
+});

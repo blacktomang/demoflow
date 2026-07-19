@@ -96,6 +96,8 @@ type Target =
 
 type AdvanceCondition =
   | { type: "click-target" }
+  | { type: "input-target"; minLength?: number }
+  | { type: "input-and-click"; minLength?: number; submitTarget: Target }
   | { type: "path-is"; path: string }
   | { type: "element-visible"; target: Target }
   | { type: "manual" };
@@ -140,6 +142,10 @@ The overlay has three layers:
 The dimmer and target highlight use `pointer-events: none`; the real app stays interactive. The control bar alone uses `pointer-events: auto`. If an exact target is outside the viewport, the overlay scrolls it into view before positioning the tooltip beside it. Restart returns to the configured `startPath`; it never attempts to undo arbitrary application state step by step.
 
 The overlay listens for `click`, `input`, `submit`, `popstate`, and URL changes. It resolves the next step after the configured `advance` condition becomes true. For a next-step target that is not yet mounted, it shows a neutral waiting state and retries after DOM mutations and on a short timer for up to five seconds. Only then does it show and report a target failure. This supports React and Next.js conditional rendering, client transitions, and asynchronous state updates without treating them as immediate errors.
+
+Use `input-target` for a form control when typed or selected content should move the walkthrough forward. It advances only when the event belongs to the highlighted target and its value has the configured `minLength` (default: one non-whitespace character).
+
+Use `input-and-click` when filling a control and clicking its real submit button form one product action. The overlay waits until the highlighted control contains the configured minimum content, then advances only after the declared `submitTarget` receives the real click.
 
 When a target cannot be found, show a non-blocking "Target unavailable" panel with Exit and Skip controls, and report a structured local failure to the MCP status endpoint: failure type, step ID, current path, intended target, and timestamp. The overlay also reports window errors, unhandled rejections, and diagnostic text from explicit app alert elements (`[role=alert]`, `.alert`, or `[data-demoflow-error]`). Messages are capped at 280 characters and redact email addresses and token-like values; no arbitrary DOM, form values, cookies, or credentials are collected. When more than one control matches without an explicit `occurrence`, show a "Target needs a clearer label" panel rather than choosing an arbitrary element.
 

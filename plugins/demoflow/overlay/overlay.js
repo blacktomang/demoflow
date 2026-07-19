@@ -1,6 +1,6 @@
 (() => {
   const targetWaitMs = 5_000;
-  const state = { spec: null, index: 0, target: null, markedTarget: null, skippedStep: null, observer: null, reportedFailures: new Set(), reportedDiagnostics: new Set(), waitingKey: null, waitingSince: 0, waitTimer: null, failedTargetKeys: new Set() };
+  const state = { spec: null, index: 0, target: null, markedTarget: null, skippedStep: null, observer: null, reportedFailures: new Set(), reportedDiagnostics: new Set(), waitingKey: null, waitingSince: 0, waitTimer: null, failedTargetKeys: new Set(), filledStepKeys: new Set() };
   const root = document.createElement("div");
   root.id = "__demoflow_root";
   root.innerHTML = `
@@ -38,7 +38,9 @@
   const progress = root.querySelector("#__demoflow_progress");
 
   function normalizedName(value) {
-    return (value || "").replace(/[\u00a0\s]+/g, " ").replace(/[→↗›»]+\s*$/, "").trim().toLocaleLowerCase();
+    // Apps often put a purely decorative chevron inside a menu button (for example
+    // "1 badge⌄"). Ignore it so a human-friendly target name still finds the control.
+    return (value || "").replace(/[\u00a0\s]+/g, " ").replace(/[→↗›»⌄⌃⌵]+\s*$/, "").trim().toLocaleLowerCase();
   }
 
   function closestContextDistance(node, context) {
@@ -173,7 +175,7 @@
         : `<strong>Target unavailable</strong><p>DemoFlow could not find “${step.id}” on this screen. This repair report is ready for Codex.</p><button>Restart demo</button> <button>Exit</button>`;
     panel.querySelectorAll("button")[0].onclick = () => {
       if (waitingForSkippedStep) { state.index -= 1; state.skippedStep = null; render(); }
-      else location.assign(state.spec.startPath);
+      else restart();
     };
     panel.querySelectorAll("button")[1].onclick = exit;
     root.append(panel); reportFailure(step, reason);
@@ -199,6 +201,21 @@
   function conditionSatisfied(step, event) {
     if (step.advance.type === "manual") return false;
     if (step.advance.type === "click-target") return event?.target && state.target?.contains(event.target);
+    if (step.advance.type === "input-target") {
+      if (!event?.target || !state.target?.contains(event.target) || !["input", "change"].includes(event.type)) return false;
+      const source = event.target;
+      const value = typeof source.value === "string" ? source.value : source.textContent || "";
+      return value.trim().length >= (step.advance.minLength || 1);
+    }
+    if (step.advance.type === "input-and-click") {
+      const key = `${state.index}:${step.id}`;
+      if (["input", "change"].includes(event?.type) && event?.target && state.target?.contains(event.target)) {
+        const value = typeof event.target.value === "string" ? event.target.value : event.target.textContent || "";
+        if (value.trim().length >= (step.advance.minLength || 1)) state.filledStepKeys.add(key);
+      }
+      if (event?.type !== "click" || !state.filledStepKeys.has(key)) return false;
+      return resolveTarget(step.advance.submitTarget).target?.contains(event.target);
+    }
     if (step.advance.type === "path-is") return location.pathname === step.advance.path;
     if (step.advance.type === "element-visible") return Boolean(resolveTarget(step.advance.target).target);
     return false;
@@ -224,13 +241,32 @@
   }
 
   function exit() { stopWaiting(); state.observer?.disconnect(); clearTargetMarker(); root.remove(); }
+  function restart() {
+    state.index = 0;
+    state.target = null;
+    state.skippedStep = null;
+    state.failedTargetKeys.clear();
+    state.filledStepKeys.clear();
+    clearTargetMarker();
+    stopWaiting();
+
+    // Browsers can treat assigning the current URL as a no-op. Re-resolving here
+    // makes Restart redraw the halo immediately without relying on a hard refresh.
+    if (location.pathname === state.spec.startPath) {
+      requestAnimationFrame(render);
+      return;
+    }
+    location.assign(state.spec.startPath);
+  }
   root.addEventListener("click", (event) => {
     const action = event.target.closest("button")?.dataset.action;
     if (action === "exit") exit();
     if (action === "skip") { state.skippedStep = state.spec.steps[state.index]; state.index += 1; state.target = null; clearTargetMarker(); stopWaiting(); render(); }
-    if (action === "restart") location.assign(state.spec.startPath);
+    if (action === "restart") restart();
   });
   document.addEventListener("click", advanceIfReady, true);
+  document.addEventListener("input", advanceIfReady, true);
+  document.addEventListener("change", advanceIfReady, true);
   document.addEventListener("submit", advanceIfReady, true);
   window.addEventListener("popstate", () => setTimeout(render, 0));
   window.addEventListener("resize", () => state.target && position(state.target));

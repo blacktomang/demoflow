@@ -58,6 +58,8 @@ DemoFlow validates that the target app is reachable before it creates a preview.
 
 DemoFlow supports React and Next.js UI that mounts conditionally after an action. When the next target is not in the DOM yet, the overlay waits and retries for up to five seconds before it reports a failed step.
 
+For a text or select field that takes effect immediately, Codex saves `advance: { "type": "input-target", "minLength": 1 }`. When a field must be filled and then submitted, it saves `input-and-click` with the real submit-button target, so the whole form action advances together. Older specs that use `manual` remain manual until regenerated or edited.
+
 ### Repairing a browser failure
 
 If Demo Mode says a target is unavailable or ambiguous, tell Codex: `Repair this DemoFlow preview.` The browser has already saved a local report containing the failed step, target, route, and reason, plus bounded diagnostics from app error banners, browser errors, and unhandled rejections. Codex reads that report and updates only the broken step. It cannot repair silently while you are in the browser because an MCP server cannot wake a completed Codex task; this avoids hidden retries and unwanted restarts.
