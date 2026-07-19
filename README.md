@@ -8,21 +8,39 @@ DemoFlow reads a local project to create a versioned `demo.spec.json`, then serv
 
 Build Week MVP. DemoFlow includes a packaged local MCP runtime, a loopback-only proxy, a live browser overlay, and a Vite/React sample application.
 
-## For users
+## Install and use
 
-DemoFlow is intended to be installed through Codex as a plugin. Once published, the user flow is:
+### Prerequisites
 
-1. Install **DemoFlow** in Codex.
-2. Open a local web-app project.
-3. Ask: “Create a guided demo for onboarding.”
-4. Confirm the project development script.
-5. Open the generated local **Demo Mode** URL and click through the real app.
+- Codex with plugin support.
+- Node.js 20+ available as `node` in the environment that starts Codex.
+- A local web app that can already run on the developer's machine. DemoFlow does not install the app's dependencies for it.
 
-There is no DemoFlow account, SaaS dashboard, source upload, or per-demo payment. The plugin bundles its MCP runtime; users should not need `pnpm install`.
+### Install from GitHub
 
-DemoFlow runs its bundled runtime with the developer's own Node.js 20+ installation. It checks for Node.js automatically and prints a clear fix when Node.js is missing or too old. It never depends on an internal ChatGPT/Codex Node runtime.
+Run these commands once. They download and install the plugin; do **not** clone this repository or run `pnpm install` to use DemoFlow.
 
-## Install and test locally
+```bash
+codex plugin marketplace add blacktomang/demoflow --ref main
+codex plugin add demoflow@personal
+```
+
+Start a new Codex task after installation so its DemoFlow skill and MCP tools are available.
+
+### Create a guided demo
+
+1. Open the local web-app project in Codex.
+2. Ask, for example: `Use DemoFlow to create a guided onboarding demo for this app.`
+3. Review the generated editable flow at `.demoflow/<demo-id>/demo.spec.json`.
+4. Approve DemoFlow when it asks to run the project's existing development script.
+5. Open the returned **Demo Mode** localhost URL and click through the real application. The tooltips advance as the real app changes state.
+6. Ask Codex to stop DemoFlow when you are finished.
+
+DemoFlow never uploads project source code to a DemoFlow service, does not require an account or payment, and does not permanently modify application source. It writes only the editable demo specification under `.demoflow/` and injects the temporary overlay through a second loopback-only localhost URL.
+
+DemoFlow runs its bundled runtime with the developer's own Node.js 20+ installation. It detects a missing or outdated Node.js version and prints a clear fix; it never depends on an internal ChatGPT/Codex Node runtime.
+
+## Install and test from a local checkout
 
 The repository now includes a local Codex marketplace manifest at `.agents/plugins/marketplace.json`.
 
