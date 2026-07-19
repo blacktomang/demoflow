@@ -61,6 +61,10 @@ The plugin skill must produce a reviewable `demo.spec.json` before opening the p
 
 No generic shell-command tool is exposed to the model. The MCP server never executes a target-project command. After `prepare_app_start`, Codex runs the returned command in its own terminal session so its native approve / deny / explain prompt remains the security boundary.
 
+### Preview lifecycle
+
+Creating a preview is a one-shot handoff: once `create_preview` returns its URL, Codex gives that URL to the developer and finishes the request. Codex must not use an in-app browser or repeated `open_preview` calls as a completion check. If either the target app or preview exits, DemoFlow reports the stopped state and waits for an explicit developer request before trying again. It never silently recreates a preview or asks for a separate prose permission to do so.
+
 ## 5. Specification format
 
 ```ts

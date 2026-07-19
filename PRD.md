@@ -163,7 +163,7 @@ flowchart LR
 | Component | Responsibility |
 | --- | --- |
 | Codex plugin | Installation manifest, skill instructions, and MCP registration |
-| DemoFlow skill | Converts a user request into a constrained demo plan, requests Codex command approval, and oversees recovery |
+| DemoFlow skill | Converts a user request into a constrained demo plan, requests Codex command approval, and hands off one preview URL |
 | Local MCP server | Safe, typed operations for project inspection, start-command preparation, spec generation, and preview control; it never starts the target app |
 | Local preview proxy | Proxies the dev server and injects the overlay without changing the project |
 | Overlay client | Renders highlights/tooltips and observes user interactions in the real app |
@@ -191,6 +191,8 @@ The proxy does not infer product intent from the page alone. It serves the live 
 | `demoflow.stop` | Stop the DemoFlow preview proxy and discard its temporary state |
 
 The MCP server exposes no generic shell-command tool and never starts a target-app process. `prepare_app_start` only returns a command selected from declared project scripts. Codex executes that returned command in its normal terminal session, which surfaces the native approve / deny / explain approval prompt. Codex owns the resulting app process and can stop it through the same session.
+
+A preview is a one-shot handoff. Once its local URL is returned, the developer uses it directly; Codex does not open the in-app browser to re-check the walkthrough or poll it for completion. If the app or preview has stopped, the current request ends with that status. DemoFlow only retries after the developer explicitly asks, preventing repeated restart and permission loops.
 
 ## 11. Demo planning and execution
 
