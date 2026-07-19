@@ -61,3 +61,14 @@ test("records missing targets without forwarding the status request to the app",
   const unknown = await fetch(`${preview.url}/__demoflow/unknown`);
   assert.equal(unknown.status, 404);
 });
+
+test("rejects an unreachable upstream before creating a preview", async () => {
+  const unavailable = createServer();
+  await new Promise((resolve) => unavailable.listen(0, "127.0.0.1", resolve));
+  const address = unavailable.address();
+  await new Promise((resolve) => unavailable.close(resolve));
+  await assert.rejects(
+    createPreview({ workspacePath, baseUrl: `http://127.0.0.1:${address.port}`, demoId: "onboarding" }),
+    /DemoFlow cannot reach the app/,
+  );
+});

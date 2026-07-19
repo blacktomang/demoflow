@@ -46,6 +46,8 @@ Running a saved demo uses its existing spec and does not re-inspect the project.
 
 DemoFlow runs its bundled runtime with the developer's own Node.js 20+ installation. It detects a missing or outdated Node.js version and prints a clear fix; it never depends on an internal ChatGPT/Codex Node runtime.
 
+DemoFlow validates that the target app is reachable before it creates a preview. Use the exact `Local:` URL printed by the app's dev server; `localhost` and `127.0.0.1` are both loopback addresses but can be served differently by local tooling.
+
 ## Install and test from a local checkout
 
 The repository now includes a local Codex marketplace manifest at `.agents/plugins/marketplace.json`.

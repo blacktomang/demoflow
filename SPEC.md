@@ -104,7 +104,7 @@ Target resolution priority is `testId`, `role/name`, `label`, then CSS. A target
 
 ## 6. Local proxy behavior
 
-The proxy listens only on loopback (`127.0.0.1`) and forwards requests to the local app base URL.
+The proxy listens only on loopback (`127.0.0.1`) and forwards requests to the local app base URL. Before creating a preview, it fetches the supplied upstream once. If that fails, DemoFlow returns a clear MCP error and no preview URL. The upstream must keep the exact hostname printed by the target dev server because `localhost` and `127.0.0.1` can bind differently.
 
 For HTML responses only, it injects before `</head>`:
 

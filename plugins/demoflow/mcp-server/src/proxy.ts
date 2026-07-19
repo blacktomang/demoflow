@@ -20,6 +20,17 @@ function loopbackUrl(value: string): URL {
   return url;
 }
 
+async function assertUpstreamReachable(baseUrl: string): Promise<void> {
+  const upstream = loopbackUrl(baseUrl);
+  try {
+    await fetch(upstream, { signal: AbortSignal.timeout(3_000) });
+  } catch (error) {
+    const alternate = new URL(upstream);
+    alternate.hostname = upstream.hostname === "127.0.0.1" ? "localhost" : "127.0.0.1";
+    throw new Error(`DemoFlow cannot reach the app at ${upstream.toString()}. Use the exact Local URL printed by the dev server (for example ${alternate.toString()}) instead of changing localhost and 127.0.0.1 interchangeably. ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 function injectedHtml(html: string): string {
   const tag = '<script>window.__DEMOFLOW_SPEC_URL__="/__demoflow/spec.json";</script><script src="/__demoflow/overlay.js" defer></script>';
   return html.includes("</head>") ? html.replace("</head>", `${tag}</head>`) : `${tag}${html}`;
@@ -94,7 +105,7 @@ async function forward(preview: Preview, request: IncomingMessage, response: Ser
 }
 
 export async function createPreview(input: { workspacePath: string; baseUrl: string; demoId: string }): Promise<Pick<Preview, "id" | "url">> {
-  loopbackUrl(input.baseUrl);
+  await assertUpstreamReachable(input.baseUrl);
   const id = randomUUID();
   const preview = { id, baseUrl: input.baseUrl, demoId: input.demoId, workspacePath: input.workspacePath, status: { missingTargets: [] as string[] } } as Preview;
   preview.server = createServer(async (request, response) => {
@@ -109,7 +120,7 @@ export async function createPreview(input: { workspacePath: string; baseUrl: str
   await new Promise<void>((resolve) => preview.server.listen(0, "127.0.0.1", resolve));
   const address = preview.server.address();
   if (!address || typeof address === "string") throw new Error("Could not determine DemoFlow preview port");
-  preview.url = `http://127.0.0.1:${address.port}`;
+  preview.url = `http://localhost:${address.port}`;
   previews.set(id, preview);
   return { id, url: preview.url };
 }
