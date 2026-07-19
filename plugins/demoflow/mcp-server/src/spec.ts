@@ -1,6 +1,7 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import type { AppMap } from "./inspector.js";
 
 const TargetSchema = z.union([
   z.object({ testId: z.string().min(1) }),
@@ -22,6 +23,10 @@ export const DemoSpecSchema = z.object({
   title: z.string().min(1),
   goal: z.string().min(1),
   startPath: z.string().startsWith("/"),
+  metadata: z.object({
+    appFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+    savedAt: z.string().datetime(),
+  }).optional(),
   steps: z.array(z.object({
     id: z.string().min(1),
     path: z.string().startsWith("/").optional(),
@@ -33,11 +38,37 @@ export const DemoSpecSchema = z.object({
 
 export type DemoSpec = z.infer<typeof DemoSpecSchema>;
 
-export async function writeDemoSpec(workspacePath: string, spec: DemoSpec): Promise<string> {
+export type SavedDemo = Pick<DemoSpec, "id" | "title" | "goal"> & { steps: number; savedAt?: string; appFingerprint?: string };
+
+export async function listDemoSpecs(workspacePath: string): Promise<SavedDemo[]> {
+  const root = path.join(workspacePath, ".demoflow");
+  const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
+  const demos = await Promise.all(entries.filter((entry) => entry.isDirectory()).map(async (entry) => {
+    try {
+      const raw = JSON.parse(await readFile(path.join(root, entry.name, "demo.spec.json"), "utf8"));
+      const spec = DemoSpecSchema.parse(raw);
+      return { id: spec.id, title: spec.title, goal: spec.goal, steps: spec.steps.length, savedAt: spec.metadata?.savedAt, appFingerprint: spec.metadata?.appFingerprint };
+    } catch { return null; }
+  }));
+  const validDemos = demos.filter((demo): demo is Exclude<typeof demo, null> => demo !== null);
+  return validDemos.sort((a, b) => (b.savedAt ?? "").localeCompare(a.savedAt ?? ""));
+}
+
+export async function readDemoSpec(workspacePath: string, demoId: string): Promise<DemoSpec> {
+  const root = path.resolve(workspacePath, ".demoflow");
+  const filePath = path.resolve(root, demoId, "demo.spec.json");
+  if (!filePath.startsWith(root + path.sep)) throw new Error("Demo spec path must stay inside .demoflow");
+  return DemoSpecSchema.parse(JSON.parse(await readFile(filePath, "utf8")));
+}
+
+export async function writeDemoSpec(workspacePath: string, spec: DemoSpec, appMap: AppMap): Promise<string> {
   const outputPath = path.resolve(workspacePath, ".demoflow", spec.id, "demo.spec.json");
   const allowedRoot = path.resolve(workspacePath, ".demoflow") + path.sep;
   if (!outputPath.startsWith(allowedRoot)) throw new Error("Demo spec path must stay inside .demoflow");
   await mkdir(path.dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, JSON.stringify(spec, null, 2) + "\n", "utf8");
+  const savedSpec: DemoSpec = { ...spec, metadata: { appFingerprint: appMap.fingerprint, savedAt: new Date().toISOString() } };
+  await writeFile(outputPath, JSON.stringify(savedSpec, null, 2) + "\n", "utf8");
+  const { workspacePath: _workspacePath, ...shareableAppMap } = appMap;
+  await writeFile(path.join(path.dirname(outputPath), "app-map.json"), JSON.stringify(shareableAppMap, null, 2) + "\n", "utf8");
   return outputPath;
 }

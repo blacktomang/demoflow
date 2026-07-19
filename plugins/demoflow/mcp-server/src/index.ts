@@ -2,11 +2,30 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { inspectProject } from "./inspector.js";
-import { writeDemoSpec, DemoSpecSchema } from "./spec.js";
+import { writeDemoSpec, DemoSpecSchema, listDemoSpecs, readDemoSpec } from "./spec.js";
 import { prepareAppStart } from "./start-command.js";
 import { createPreview, getPreview, stopPreview } from "./proxy.js";
 
 const server = new McpServer({ name: "demoflow", version: "0.1.0" });
+
+server.tool(
+  "list_demos",
+  "List saved DemoFlow specs without inspecting application source code.",
+  { workspacePath: z.string() },
+  async ({ workspacePath }) => ({ content: [{ type: "text", text: JSON.stringify(await listDemoSpecs(workspacePath), null, 2) }] }),
+);
+
+server.tool(
+  "check_demo_freshness",
+  "Compare a saved demo's app-map fingerprint to the current compact app map. This scans source only when called.",
+  { workspacePath: z.string(), demoId: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/) },
+  async ({ workspacePath, demoId }) => {
+    const spec = await readDemoSpec(workspacePath, demoId);
+    if (!spec.metadata?.appFingerprint) return { content: [{ type: "text", text: JSON.stringify({ demoId, status: "unknown", reason: "This demo was saved before fingerprints were added." }, null, 2) }] };
+    const appMap = await inspectProject(workspacePath);
+    return { content: [{ type: "text", text: JSON.stringify({ demoId, status: spec.metadata.appFingerprint === appMap.fingerprint ? "current" : "stale", savedFingerprint: spec.metadata.appFingerprint, currentFingerprint: appMap.fingerprint }, null, 2) }] };
+  },
+);
 
 server.tool(
   "inspect_project",
@@ -79,7 +98,7 @@ server.tool(
   "Validate and save a DemoFlow demo spec under .demoflow/<id>/demo.spec.json.",
   { workspacePath: z.string(), spec: DemoSpecSchema },
   async ({ workspacePath, spec }) => {
-    const path = await writeDemoSpec(workspacePath, spec);
+    const path = await writeDemoSpec(workspacePath, spec, await inspectProject(workspacePath));
     return { content: [{ type: "text", text: `Saved DemoFlow spec: ${path}` }] };
   },
 );

@@ -9,7 +9,7 @@ It deliberately excludes Playwright, autonomous clicking, screenshots, and video
 ## 2. End-to-end interaction
 
 1. The developer opens a repository in Codex and asks for a demo flow.
-2. The DemoFlow skill inspects local source files and writes `.demoflow/<demo-id>/demo.spec.json`.
+2. For a new demo, the DemoFlow skill inspects local source files and writes `.demoflow/<demo-id>/demo.spec.json` plus a compact app-map snapshot. A saved demo can run directly without this inspection.
 3. The MCP server validates a declared project development script and returns its exact command, working directory, and likely loopback URL without executing it.
 4. Codex runs that command in its terminal session. Codex displays its native approval prompt, so the developer can approve, deny, or give feedback before the app starts.
 5. Once the app is running, the MCP server starts a DemoFlow proxy on another local port.
@@ -52,8 +52,10 @@ The plugin skill must produce a reviewable `demo.spec.json` before opening the p
 
 | Tool | Input | Result |
 | --- | --- | --- |
+| `demoflow.list_demos` | workspace path | saved demo titles, goals, steps, and saved fingerprints without a source scan |
+| `demoflow.check_demo_freshness` | workspace path + demo ID | `current`, `stale`, or `unknown` after an on-demand compact scan |
 | `demoflow.inspect_project` | workspace path | framework, scripts, route/component/test-id summary |
-| `demoflow.write_spec` | demo ID + validated spec | saved path |
+| `demoflow.write_spec` | demo ID + validated spec | saved path, demo-local app-map snapshot, and fingerprint |
 | `demoflow.prepare_app_start` | declared package script | exact command, working directory, and likely local base URL; no process is started |
 | `demoflow.create_preview` | base URL + spec path | proxy preview URL |
 | `demoflow.open_preview` | preview ID | URL and current status |
@@ -148,7 +150,7 @@ The first implementation uses a deterministic scanner before asking Codex to wri
 - collect visible button/label text from JSX/TSX where safe
 - list existing Playwright/Cypress test names without executing them
 
-The scanner writes a compact `.demoflow/app-map.json`. Codex receives this map and selected source snippets, not a full browser DOM or continuous visual stream.
+The scanner writes a compact `.demoflow/app-map.json`. When a demo is saved, DemoFlow also writes a shareable snapshot at `.demoflow/<demo-id>/app-map.json` and stores its SHA-256 fingerprint in the demo spec. The demo-local snapshot excludes machine-specific workspace paths. Codex receives this map and selected source snippets, not a full browser DOM or continuous visual stream. Opening a saved demo does not rescan source; a freshness check is explicit and returns only `current`, `stale`, or `unknown` to Codex.
 
 ## 9. Security and privacy
 

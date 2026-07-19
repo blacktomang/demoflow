@@ -114,6 +114,7 @@ All artifacts are written under `.demoflow/<demo-id>/` by default.
 ```text
 .demoflow/onboarding-demo/
   demo.spec.json
+  app-map.json
   run-report.json
 ```
 
@@ -184,6 +185,8 @@ The proxy does not infer product intent from the page alone. It serves the live 
 | Tool | Purpose |
 | --- | --- |
 | `demoflow.inspect_project` | Return framework, scripts, routes, likely entry points, and existing E2E test hints |
+| `demoflow.list_demos` | List saved local demo specs without scanning project source |
+| `demoflow.check_demo_freshness` | On-demand comparison of a saved demo fingerprint with the current compact app map |
 | `demoflow.prepare_app_start` | Validate a declared package script and return its exact command, working directory, and likely local URL without executing it |
 | `demoflow.create_preview` | Start a local reverse proxy that injects the DemoFlow overlay |
 | `demoflow.write_spec` | Save the reviewed structured demo specification |

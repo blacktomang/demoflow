@@ -1,4 +1,5 @@
-import { readdir, readFile, stat, writeFile, mkdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
 const MAX_FILES = 300;
@@ -11,6 +12,7 @@ export type AppMap = {
   routes: string[];
   testIds: string[];
   labels: string[];
+  fingerprint: string;
 };
 
 async function filesUnder(root: string, acc: string[] = []): Promise<string[]> {
@@ -27,6 +29,16 @@ async function filesUnder(root: string, acc: string[] = []): Promise<string[]> {
 
 function unique(values: Iterable<string>, max = 100): string[] {
   return [...new Set(values)].slice(0, max).sort();
+}
+
+export function fingerprintAppMap(appMap: Omit<AppMap, "workspacePath" | "fingerprint">): string {
+  return createHash("sha256").update(JSON.stringify({
+    frameworkHints: appMap.frameworkHints,
+    scripts: appMap.scripts,
+    routes: appMap.routes,
+    testIds: appMap.testIds,
+    labels: appMap.labels,
+  })).digest("hex");
 }
 
 export async function inspectProject(workspacePath: string): Promise<AppMap> {
@@ -52,7 +64,7 @@ export async function inspectProject(workspacePath: string): Promise<AppMap> {
     }
   }
 
-  const appMap: AppMap = {
+  const appMapBase = {
     workspacePath,
     frameworkHints,
     scripts: Object.keys(packageJson.scripts ?? {}),
@@ -60,6 +72,7 @@ export async function inspectProject(workspacePath: string): Promise<AppMap> {
     testIds: unique(testIds),
     labels: unique(labels),
   };
+  const appMap: AppMap = { ...appMapBase, fingerprint: fingerprintAppMap(appMapBase) };
   const outputDir = path.join(workspacePath, ".demoflow");
   await mkdir(outputDir, { recursive: true });
   await writeFile(path.join(outputDir, "app-map.json"), JSON.stringify(appMap, null, 2));

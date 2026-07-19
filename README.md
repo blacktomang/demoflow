@@ -36,7 +36,13 @@ Start a new Codex task after installation so its DemoFlow skill and MCP tools ar
 5. Open the returned **Demo Mode** localhost URL and click through the real application. The tooltips advance as the real app changes state.
 6. Ask Codex to stop DemoFlow when you are finished.
 
-DemoFlow never uploads project source code to a DemoFlow service, does not require an account or payment, and does not permanently modify application source. It writes only the editable demo specification under `.demoflow/` and injects the temporary overlay through a second loopback-only localhost URL.
+DemoFlow never uploads project source code to a DemoFlow service, does not require an account or payment, and does not permanently modify application source. It writes only local `.demoflow/` artifacts and injects the temporary overlay through a second loopback-only localhost URL.
+
+### Saved demos and freshness
+
+Each saved demo contains an editable `demo.spec.json` and a small, shareable `app-map.json` snapshot. The snapshot contains framework hints, scripts, routes, test IDs, labels, and a SHA-256 fingerprint—never raw source files, local paths, form data, or credentials.
+
+Running a saved demo uses its existing spec and does not re-inspect the project. When a developer asks to validate freshness, DemoFlow rebuilds the compact map locally and compares fingerprints. A mismatch means the demo may be stale; it does not prove that the demo is broken. Saved `.demoflow/` folders remain ignored by Git by default, but a team can intentionally commit selected demo folders to share them.
 
 DemoFlow runs its bundled runtime with the developer's own Node.js 20+ installation. It detects a missing or outdated Node.js version and prints a clear fix; it never depends on an internal ChatGPT/Codex Node runtime.
 

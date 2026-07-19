@@ -10,19 +10,21 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 ## Workflow
 
 1. Use Codex's terminal tool to run `node --version`. If Node.js is missing or below 20, explain the prerequisite and stop before calling DemoFlow MCP tools.
-2. Call `demoflow.inspect_project` before proposing a flow.
-3. Describe a short linear journey using only targets found in the returned application map.
+2. Call `demoflow.list_demos` first. This lists saved demos without reading application source code.
+3. If the developer chooses a saved demo, use its `demo.spec.json` directly; do not call `inspect_project`. Offer `demoflow.check_demo_freshness` only when the developer asks to validate it or when a stale-flow warning is needed. A `current` result can run; a `stale` result needs the developer's choice to run anyway or regenerate; an `unknown` result should offer the same choice.
+4. For a new or regenerated demo, call `demoflow.inspect_project` before proposing a flow.
+5. Describe a short linear journey using only targets found in the returned application map.
    - Every target must resolve to one element. Never use a generic repeated role/name such as `Join` alone.
    - Prefer a `testId`. If a repeated button has no test ID, use a role/name target with `withinText` set to the surrounding card's visible challenge title.
-4. Write a versioned `demo.spec.json` using `demoflow.write_spec`.
-5. Call `demoflow.prepare_app_start` for a declared package script and the expected loopback URL. Do not ask for a separate prose confirmation.
-6. Run the returned exact command once with Codex's terminal tool in the returned working directory. This must trigger Codex's native command-approval prompt; never bypass it by running the development command from MCP.
-7. After Codex reports that the app is reachable at the expected URL, call `demoflow.create_preview` once, then immediately give the preview URL to the user. The preview URL is the completion of this workflow.
-8. Explain that the preview is the real app, augmented by a temporary overlay; the user clicks and fills the real UI.
-9. Do not open, inspect, or exercise the preview in Codex's in-app browser unless the user explicitly asks for browser testing. Do not poll `open_preview` to decide whether the workflow is complete.
-10. If the app process or preview stops, report that it stopped and end the workflow. Never automatically reuse, recreate, or restart a preview or app process. Only make another attempt after the user explicitly asks to retry.
-11. On a missing target, inspect the reported state, revise only the affected step, and rewrite the spec.
-12. Stop the preview with `demoflow.stop` when the user finishes. Codex owns the development-server process and stops it through the same terminal session.
+6. Write a versioned `demo.spec.json` using `demoflow.write_spec`; it saves a compact app-map snapshot and fingerprint beside the spec.
+7. Call `demoflow.prepare_app_start` for a declared package script and the expected loopback URL. Do not ask for a separate prose confirmation.
+8. Run the returned exact command once with Codex's terminal tool in the returned working directory. This must trigger Codex's native command-approval prompt; never bypass it by running the development command from MCP.
+9. After Codex reports that the app is reachable at the expected URL, call `demoflow.create_preview` once, then immediately give the preview URL to the user. The preview URL is the completion of this workflow.
+10. Explain that the preview is the real app, augmented by a temporary overlay; the user clicks and fills the real UI.
+11. Do not open, inspect, or exercise the preview in Codex's in-app browser unless the user explicitly asks for browser testing. Do not poll `open_preview` to decide whether the workflow is complete.
+12. If the app process or preview stops, report that it stopped and end the workflow. Never automatically reuse, recreate, or restart a preview or app process. Only make another attempt after the user explicitly asks to retry.
+13. On a missing target, inspect the reported state, revise only the affected step, and rewrite the spec.
+14. Stop the preview with `demoflow.stop` when the user finishes. Codex owns the development-server process and stops it through the same terminal session.
 
 ## Constraints
 

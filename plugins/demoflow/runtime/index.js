@@ -21100,6 +21100,7 @@ var StdioServerTransport = class {
 };
 
 // src/inspector.ts
+import { createHash } from "node:crypto";
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 var MAX_FILES = 300;
@@ -21118,6 +21119,15 @@ async function filesUnder(root, acc = []) {
 function unique(values, max = 100) {
   return [...new Set(values)].slice(0, max).sort();
 }
+function fingerprintAppMap(appMap) {
+  return createHash("sha256").update(JSON.stringify({
+    frameworkHints: appMap.frameworkHints,
+    scripts: appMap.scripts,
+    routes: appMap.routes,
+    testIds: appMap.testIds,
+    labels: appMap.labels
+  })).digest("hex");
+}
 async function inspectProject(workspacePath) {
   const packagePath = path.join(workspacePath, "package.json");
   const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
@@ -21135,7 +21145,7 @@ async function inspectProject(workspacePath) {
       if (!/[>{}()]/.test(value)) labels.push(value);
     }
   }
-  const appMap = {
+  const appMapBase = {
     workspacePath,
     frameworkHints,
     scripts: Object.keys(packageJson.scripts ?? {}),
@@ -21143,6 +21153,7 @@ async function inspectProject(workspacePath) {
     testIds: unique(testIds),
     labels: unique(labels)
   };
+  const appMap = { ...appMapBase, fingerprint: fingerprintAppMap(appMapBase) };
   const outputDir = path.join(workspacePath, ".demoflow");
   await mkdir(outputDir, { recursive: true });
   await writeFile(path.join(outputDir, "app-map.json"), JSON.stringify(appMap, null, 2));
@@ -21150,7 +21161,7 @@ async function inspectProject(workspacePath) {
 }
 
 // src/spec.ts
-import { mkdir as mkdir2, writeFile as writeFile2 } from "node:fs/promises";
+import { mkdir as mkdir2, readFile as readFile2, readdir as readdir2, writeFile as writeFile2 } from "node:fs/promises";
 import path2 from "node:path";
 var TargetSchema = external_exports.union([
   external_exports.object({ testId: external_exports.string().min(1) }),
@@ -21170,6 +21181,10 @@ var DemoSpecSchema = external_exports.object({
   title: external_exports.string().min(1),
   goal: external_exports.string().min(1),
   startPath: external_exports.string().startsWith("/"),
+  metadata: external_exports.object({
+    appFingerprint: external_exports.string().regex(/^[a-f0-9]{64}$/),
+    savedAt: external_exports.string().datetime()
+  }).optional(),
   steps: external_exports.array(external_exports.object({
     id: external_exports.string().min(1),
     path: external_exports.string().startsWith("/").optional(),
@@ -21178,17 +21193,41 @@ var DemoSpecSchema = external_exports.object({
     advance: AdvanceSchema
   })).min(1).max(5)
 });
-async function writeDemoSpec(workspacePath, spec) {
+async function listDemoSpecs(workspacePath) {
+  const root = path2.join(workspacePath, ".demoflow");
+  const entries = await readdir2(root, { withFileTypes: true }).catch(() => []);
+  const demos = await Promise.all(entries.filter((entry) => entry.isDirectory()).map(async (entry) => {
+    try {
+      const raw = JSON.parse(await readFile2(path2.join(root, entry.name, "demo.spec.json"), "utf8"));
+      const spec = DemoSpecSchema.parse(raw);
+      return { id: spec.id, title: spec.title, goal: spec.goal, steps: spec.steps.length, savedAt: spec.metadata?.savedAt, appFingerprint: spec.metadata?.appFingerprint };
+    } catch {
+      return null;
+    }
+  }));
+  const validDemos = demos.filter((demo) => demo !== null);
+  return validDemos.sort((a, b) => (b.savedAt ?? "").localeCompare(a.savedAt ?? ""));
+}
+async function readDemoSpec(workspacePath, demoId) {
+  const root = path2.resolve(workspacePath, ".demoflow");
+  const filePath = path2.resolve(root, demoId, "demo.spec.json");
+  if (!filePath.startsWith(root + path2.sep)) throw new Error("Demo spec path must stay inside .demoflow");
+  return DemoSpecSchema.parse(JSON.parse(await readFile2(filePath, "utf8")));
+}
+async function writeDemoSpec(workspacePath, spec, appMap) {
   const outputPath = path2.resolve(workspacePath, ".demoflow", spec.id, "demo.spec.json");
   const allowedRoot = path2.resolve(workspacePath, ".demoflow") + path2.sep;
   if (!outputPath.startsWith(allowedRoot)) throw new Error("Demo spec path must stay inside .demoflow");
   await mkdir2(path2.dirname(outputPath), { recursive: true });
-  await writeFile2(outputPath, JSON.stringify(spec, null, 2) + "\n", "utf8");
+  const savedSpec = { ...spec, metadata: { appFingerprint: appMap.fingerprint, savedAt: (/* @__PURE__ */ new Date()).toISOString() } };
+  await writeFile2(outputPath, JSON.stringify(savedSpec, null, 2) + "\n", "utf8");
+  const { workspacePath: _workspacePath, ...shareableAppMap } = appMap;
+  await writeFile2(path2.join(path2.dirname(outputPath), "app-map.json"), JSON.stringify(shareableAppMap, null, 2) + "\n", "utf8");
   return outputPath;
 }
 
 // src/start-command.ts
-import { access, readFile as readFile2 } from "node:fs/promises";
+import { access, readFile as readFile3 } from "node:fs/promises";
 import path3 from "node:path";
 async function exists(filePath) {
   try {
@@ -21208,7 +21247,7 @@ async function detectPackageManager(workspacePath, packageJson) {
 }
 async function prepareAppStart(input) {
   const packagePath = path3.join(input.workspacePath, "package.json");
-  const packageJson = JSON.parse(await readFile2(packagePath, "utf8"));
+  const packageJson = JSON.parse(await readFile3(packagePath, "utf8"));
   if (!packageJson.scripts?.[input.scriptName]) throw new Error(`Package script not found: ${input.scriptName}`);
   const manager = await detectPackageManager(input.workspacePath, packageJson);
   const args = manager === "yarn" ? [input.scriptName] : ["run", input.scriptName];
@@ -21225,7 +21264,7 @@ async function prepareAppStart(input) {
 // src/proxy.ts
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
-import { readFile as readFile3 } from "node:fs/promises";
+import { readFile as readFile4 } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path4 from "node:path";
@@ -21258,14 +21297,14 @@ async function serveReserved(preview, request, response) {
   if (!pathname.startsWith("/__demoflow/")) return false;
   if (pathname === "/__demoflow/spec.json") {
     const actualPath = path4.join(preview.workspacePath, ".demoflow", preview.demoId, "demo.spec.json");
-    const parsed = DemoSpecSchema.parse(JSON.parse(await readFile3(actualPath, "utf8")));
+    const parsed = DemoSpecSchema.parse(JSON.parse(await readFile4(actualPath, "utf8")));
     response.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
     response.end(JSON.stringify(parsed));
     return true;
   }
   if (pathname === "/__demoflow/overlay.js") {
     response.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" });
-    response.end(await readFile3(path4.join(overlayDirectory, "overlay.js")));
+    response.end(await readFile4(path4.join(overlayDirectory, "overlay.js")));
     return true;
   }
   if (pathname === "/__demoflow/status") {
@@ -21346,6 +21385,23 @@ async function stopPreview(id) {
 // src/index.ts
 var server = new McpServer({ name: "demoflow", version: "0.1.0" });
 server.tool(
+  "list_demos",
+  "List saved DemoFlow specs without inspecting application source code.",
+  { workspacePath: external_exports.string() },
+  async ({ workspacePath }) => ({ content: [{ type: "text", text: JSON.stringify(await listDemoSpecs(workspacePath), null, 2) }] })
+);
+server.tool(
+  "check_demo_freshness",
+  "Compare a saved demo's app-map fingerprint to the current compact app map. This scans source only when called.",
+  { workspacePath: external_exports.string(), demoId: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/) },
+  async ({ workspacePath, demoId }) => {
+    const spec = await readDemoSpec(workspacePath, demoId);
+    if (!spec.metadata?.appFingerprint) return { content: [{ type: "text", text: JSON.stringify({ demoId, status: "unknown", reason: "This demo was saved before fingerprints were added." }, null, 2) }] };
+    const appMap = await inspectProject(workspacePath);
+    return { content: [{ type: "text", text: JSON.stringify({ demoId, status: spec.metadata.appFingerprint === appMap.fingerprint ? "current" : "stale", savedFingerprint: spec.metadata.appFingerprint, currentFingerprint: appMap.fingerprint }, null, 2) }] };
+  }
+);
+server.tool(
   "inspect_project",
   "Create a compact local app map with scripts, routes, test IDs, and likely UI labels.",
   { workspacePath: external_exports.string().describe("Absolute path to the local project workspace") },
@@ -21411,7 +21467,7 @@ server.tool(
   "Validate and save a DemoFlow demo spec under .demoflow/<id>/demo.spec.json.",
   { workspacePath: external_exports.string(), spec: DemoSpecSchema },
   async ({ workspacePath, spec }) => {
-    const path5 = await writeDemoSpec(workspacePath, spec);
+    const path5 = await writeDemoSpec(workspacePath, spec, await inspectProject(workspacePath));
     return { content: [{ type: "text", text: `Saved DemoFlow spec: ${path5}` }] };
   }
 );
