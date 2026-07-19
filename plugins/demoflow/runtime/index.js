@@ -21008,7 +21008,7 @@ var EMPTY_COMPLETION_RESULT = {
 };
 
 // node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
-import process2 from "node:process";
+import process from "node:process";
 
 // node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/stdio.js
 var ReadBuffer = class {
@@ -21040,7 +21040,7 @@ function serializeMessage(message) {
 
 // node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 var StdioServerTransport = class {
-  constructor(_stdin = process2.stdin, _stdout = process2.stdout) {
+  constructor(_stdin = process.stdin, _stdout = process.stdout) {
     this._stdin = _stdin;
     this._stdout = _stdout;
     this._readBuffer = new ReadBuffer();
@@ -21187,81 +21187,51 @@ async function writeDemoSpec(workspacePath, spec) {
   return outputPath;
 }
 
-// src/app-lifecycle.ts
-import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { readFile as readFile2 } from "node:fs/promises";
-import { existsSync } from "node:fs";
+// src/start-command.ts
+import { access, readFile as readFile2 } from "node:fs/promises";
 import path3 from "node:path";
-var apps = /* @__PURE__ */ new Map();
-async function waitForHealth(baseUrl, timeoutMs = 2e4) {
-  const deadline = Date.now() + timeoutMs;
-  let lastError = "No response";
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(baseUrl, { signal: AbortSignal.timeout(1500) });
-      if (response.ok || response.status < 500) return;
-      lastError = `Received HTTP ${response.status}`;
-    } catch (error2) {
-      lastError = error2 instanceof Error ? error2.message : String(error2);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
-  throw new Error(`Local app did not become ready at ${baseUrl}: ${lastError}`);
-}
-function packageManager() {
-  const bundledNpm = "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/npm";
-  return process.platform === "darwin" && existsSync(bundledNpm) ? bundledNpm : "npm";
-}
-async function startApp(input) {
-  const packageJson = JSON.parse(await readFile2(path3.join(input.workspacePath, "package.json"), "utf8"));
-  if (!packageJson.scripts?.[input.scriptName]) throw new Error(`Package script not found: ${input.scriptName}`);
-  const manager = packageManager();
-  const child = spawn(manager, ["run", input.scriptName], {
-    cwd: input.workspacePath,
-    shell: true,
-    stdio: "pipe",
-    env: { ...process.env, HOST: "127.0.0.1" }
-  });
-  const id = randomUUID();
-  const app = { id, ...input, process: child };
-  apps.set(id, app);
+async function exists(filePath) {
   try {
-    await waitForHealth(input.baseUrl);
-    return { id, baseUrl: input.baseUrl };
-  } catch (error2) {
-    await stopApp(id);
-    throw error2;
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
   }
 }
-async function stopApp(id) {
-  const app = apps.get(id);
-  if (!app) throw new Error(`Unknown DemoFlow app process: ${id}`);
-  apps.delete(id);
-  if (app.process.exitCode !== null || app.process.killed) return;
-  app.process.kill("SIGTERM");
-  await new Promise((resolve) => {
-    const timeout = setTimeout(() => {
-      app.process.kill("SIGKILL");
-      resolve();
-    }, 3e3);
-    app.process.once("exit", () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-  });
+async function detectPackageManager(workspacePath, packageJson) {
+  const declared = packageJson.packageManager?.split("@")[0];
+  if (declared && ["npm", "pnpm", "yarn", "bun"].includes(declared)) return declared;
+  if (await exists(path3.join(workspacePath, "bun.lockb")) || await exists(path3.join(workspacePath, "bun.lock"))) return "bun";
+  if (await exists(path3.join(workspacePath, "pnpm-lock.yaml"))) return "pnpm";
+  if (await exists(path3.join(workspacePath, "yarn.lock"))) return "yarn";
+  return "npm";
+}
+async function prepareAppStart(input) {
+  const packagePath = path3.join(input.workspacePath, "package.json");
+  const packageJson = JSON.parse(await readFile2(packagePath, "utf8"));
+  if (!packageJson.scripts?.[input.scriptName]) throw new Error(`Package script not found: ${input.scriptName}`);
+  const manager = await detectPackageManager(input.workspacePath, packageJson);
+  const args = manager === "yarn" ? [input.scriptName] : ["run", input.scriptName];
+  return {
+    workspacePath: input.workspacePath,
+    scriptName: input.scriptName,
+    command: manager,
+    args,
+    displayCommand: [manager, ...args].join(" "),
+    baseUrl: input.baseUrl
+  };
 }
 
 // src/proxy.ts
 import { createServer } from "node:http";
-import { randomUUID as randomUUID2 } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { readFile as readFile3 } from "node:fs/promises";
-import { existsSync as existsSync2 } from "node:fs";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path4 from "node:path";
 var previews = /* @__PURE__ */ new Map();
 var moduleDirectory = path4.dirname(fileURLToPath(import.meta.url));
-var overlayDirectoryCandidate = [path4.resolve(moduleDirectory, "../overlay"), path4.resolve(moduleDirectory, "../../overlay")].find((candidate) => existsSync2(path4.join(candidate, "overlay.js")));
+var overlayDirectoryCandidate = [path4.resolve(moduleDirectory, "../overlay"), path4.resolve(moduleDirectory, "../../overlay")].find((candidate) => existsSync(path4.join(candidate, "overlay.js")));
 if (!overlayDirectoryCandidate) throw new Error("DemoFlow overlay bundle is missing");
 var overlayDirectory = overlayDirectoryCandidate;
 function loopbackUrl(value) {
@@ -21334,7 +21304,7 @@ async function forward(preview, request, response) {
 }
 async function createPreview(input) {
   loopbackUrl(input.baseUrl);
-  const id = randomUUID2();
+  const id = randomUUID();
   const preview = { id, baseUrl: input.baseUrl, demoId: input.demoId, workspacePath: input.workspacePath, status: { missingTargets: [] } };
   preview.server = createServer(async (request, response) => {
     try {
@@ -21376,16 +21346,24 @@ server.tool(
   }
 );
 server.tool(
-  "start_app",
-  "Start a user-approved local development script and wait for its local health URL.",
+  "prepare_app_start",
+  "Validate a declared local development script and return the exact command for Codex to run. This tool never starts a process.",
   {
     workspacePath: external_exports.string(),
     scriptName: external_exports.string().regex(/^[a-zA-Z0-9:_-]+$/).describe("User-approved package script name, for example dev"),
     baseUrl: external_exports.string().url().refine((value) => /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(value), "Must be a loopback HTTP URL")
   },
   async ({ workspacePath, scriptName, baseUrl }) => {
-    const app = await startApp({ workspacePath, scriptName, baseUrl });
-    return { content: [{ type: "text", text: `App ready: ${app.baseUrl} (${app.id})` }] };
+    const start = await prepareAppStart({ workspacePath, scriptName, baseUrl });
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          ...start,
+          instruction: "Run this command with Codex's terminal tool. Codex must show its native command approval before execution. Once the app is reachable at baseUrl, call create_preview."
+        }, null, 2)
+      }]
+    };
   }
 );
 server.tool(
@@ -21412,12 +21390,11 @@ server.tool(
 );
 server.tool(
   "stop",
-  "Stop a DemoFlow app process or Demo Mode preview that was started by this MCP server.",
-  { kind: external_exports.enum(["app", "preview"]), id: external_exports.string().min(1) },
-  async ({ kind, id }) => {
-    if (kind === "app") await stopApp(id);
-    else await stopPreview(id);
-    return { content: [{ type: "text", text: `Stopped ${kind}: ${id}` }] };
+  "Stop a Demo Mode preview. The target app process belongs to Codex and is not controlled by DemoFlow.",
+  { previewId: external_exports.string().min(1) },
+  async ({ previewId }) => {
+    await stopPreview(previewId);
+    return { content: [{ type: "text", text: `Stopped preview: ${previewId}` }] };
   }
 );
 server.tool(

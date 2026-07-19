@@ -3,7 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { inspectProject } from "./inspector.js";
 import { writeDemoSpec, DemoSpecSchema } from "./spec.js";
-import { startApp, stopApp } from "./app-lifecycle.js";
+import { prepareAppStart } from "./start-command.js";
 import { createPreview, getPreview, stopPreview } from "./proxy.js";
 
 const server = new McpServer({ name: "demoflow", version: "0.1.0" });
@@ -19,16 +19,24 @@ server.tool(
 );
 
 server.tool(
-  "start_app",
-  "Start a user-approved local development script and wait for its local health URL.",
+  "prepare_app_start",
+  "Validate a declared local development script and return the exact command for Codex to run. This tool never starts a process.",
   {
     workspacePath: z.string(),
     scriptName: z.string().regex(/^[a-zA-Z0-9:_-]+$/).describe("User-approved package script name, for example dev"),
     baseUrl: z.string().url().refine((value) => /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(value), "Must be a loopback HTTP URL"),
   },
   async ({ workspacePath, scriptName, baseUrl }) => {
-    const app = await startApp({ workspacePath, scriptName, baseUrl });
-    return { content: [{ type: "text", text: `App ready: ${app.baseUrl} (${app.id})` }] };
+    const start = await prepareAppStart({ workspacePath, scriptName, baseUrl });
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          ...start,
+          instruction: "Run this command with Codex's terminal tool. Codex must show its native command approval before execution. Once the app is reachable at baseUrl, call create_preview.",
+        }, null, 2),
+      }],
+    };
   },
 );
 
@@ -58,12 +66,11 @@ server.tool(
 
 server.tool(
   "stop",
-  "Stop a DemoFlow app process or Demo Mode preview that was started by this MCP server.",
-  { kind: z.enum(["app", "preview"]), id: z.string().min(1) },
-  async ({ kind, id }) => {
-    if (kind === "app") await stopApp(id);
-    else await stopPreview(id);
-    return { content: [{ type: "text", text: `Stopped ${kind}: ${id}` }] };
+  "Stop a Demo Mode preview. The target app process belongs to Codex and is not controlled by DemoFlow.",
+  { previewId: z.string().min(1) },
+  async ({ previewId }) => {
+    await stopPreview(previewId);
+    return { content: [{ type: "text", text: `Stopped preview: ${previewId}` }] };
   },
 );
 

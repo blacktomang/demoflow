@@ -32,7 +32,7 @@ Start a new Codex task after installation so its DemoFlow skill and MCP tools ar
 1. Open the local web-app project in Codex.
 2. Ask, for example: `Use DemoFlow to create a guided onboarding demo for this app.`
 3. Review the generated editable flow at `.demoflow/<demo-id>/demo.spec.json`.
-4. Approve DemoFlow when it asks to run the project's existing development script.
+4. Approve Codex's native command prompt for the project's existing development script, or cancel/explain an adjustment there.
 5. Open the returned **Demo Mode** localhost URL and click through the real application. The tooltips advance as the real app changes state.
 6. Ask Codex to stop DemoFlow when you are finished.
 
@@ -91,7 +91,7 @@ plugins/demoflow/sample-app     # Local verification app
 
 1. Open a supported app repository in Codex.
 2. Ask DemoFlow for a short user journey.
-3. Approve the generated `demo.spec.json` and local development script.
+3. Approve Codex's native command prompt for the local development script.
 4. Open Demo Mode at a second localhost URL.
 5. Click through the real application while tooltips explain each feature.
 

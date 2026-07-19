@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "demoflow": {
-      "command": "/bin/sh",
-      "args": ["${pluginRoot}/runtime/start.sh"]
+      "command": "node",
+      "args": ["${pluginRoot}/runtime/index.js"]
     }
   }
 }
