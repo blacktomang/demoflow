@@ -1,12 +1,19 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { inspectProject } from "./inspector.js";
+import { inspectProject, type AppMap } from "./inspector.js";
 import { writeDemoSpec, DemoSpecSchema, listDemoSpecs, readDemoSpec } from "./spec.js";
 import { prepareAppStart } from "./start-command.js";
 import { createPreview, getPreview, stopPreview } from "./proxy.js";
 
 const server = new McpServer({ name: "demoflow", version: "0.1.0" });
+const lastInspectedAppMaps = new Map<string, AppMap>();
+
+async function inspectAndRemember(workspacePath: string): Promise<AppMap> {
+  const appMap = await inspectProject(workspacePath);
+  lastInspectedAppMaps.set(workspacePath, appMap);
+  return appMap;
+}
 
 server.tool(
   "list_demos",
@@ -22,7 +29,7 @@ server.tool(
   async ({ workspacePath, demoId }) => {
     const spec = await readDemoSpec(workspacePath, demoId);
     if (!spec.metadata?.appFingerprint) return { content: [{ type: "text", text: JSON.stringify({ demoId, status: "unknown", reason: "This demo was saved before fingerprints were added." }, null, 2) }] };
-    const appMap = await inspectProject(workspacePath);
+    const appMap = await inspectAndRemember(workspacePath);
     return { content: [{ type: "text", text: JSON.stringify({ demoId, status: spec.metadata.appFingerprint === appMap.fingerprint ? "current" : "stale", savedFingerprint: spec.metadata.appFingerprint, currentFingerprint: appMap.fingerprint }, null, 2) }] };
   },
 );
@@ -32,7 +39,7 @@ server.tool(
   "Create a compact local app map with scripts, routes, test IDs, and likely UI labels.",
   { workspacePath: z.string().describe("Absolute path to the local project workspace") },
   async ({ workspacePath }) => {
-    const appMap = await inspectProject(workspacePath);
+    const appMap = await inspectAndRemember(workspacePath);
     return { content: [{ type: "text", text: JSON.stringify(appMap, null, 2) }] };
   },
 );
@@ -98,7 +105,7 @@ server.tool(
   "Validate and save a DemoFlow demo spec under .demoflow/<id>/demo.spec.json.",
   { workspacePath: z.string(), spec: DemoSpecSchema },
   async ({ workspacePath, spec }) => {
-    const path = await writeDemoSpec(workspacePath, spec, await inspectProject(workspacePath));
+    const path = await writeDemoSpec(workspacePath, spec, lastInspectedAppMaps.get(workspacePath) ?? await inspectAndRemember(workspacePath));
     return { content: [{ type: "text", text: `Saved DemoFlow spec: ${path}` }] };
   },
 );
