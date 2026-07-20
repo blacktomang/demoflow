@@ -12,6 +12,7 @@ const appMapData = {
   routes: ["/community"],
   testIds: ["join-quit-smoking"],
   labels: ["Join"],
+  controls: [{ kind: "button", name: "Join", source: "src/Community.tsx" }],
 };
 
 test("saves a shareable app-map snapshot and lists the saved demo", async () => {

@@ -54,7 +54,7 @@ The plugin skill must produce a reviewable `demo.spec.json` before opening the p
 | --- | --- | --- |
 | `demoflow.list_demos` | workspace path | saved demo titles, goals, steps, and saved fingerprints without a source scan |
 | `demoflow.check_demo_freshness` | workspace path + demo ID | `current`, `stale`, or `unknown` after an on-demand compact scan |
-| `demoflow.inspect_project` | workspace path | framework, scripts, route/component/test-id summary |
+| `demoflow.inspect_project` | workspace path | framework, scripts, route, test-ID, and source-relative UI-control summary |
 | `demoflow.inspect_branch_changes` | workspace path + optional base branch | local base/current branches, commit SHAs, and changed-file summary for a branch-aware demo |
 | `demoflow.write_spec` | demo ID + validated spec | saved path, demo-local app-map snapshot, and fingerprint |
 | `demoflow.prepare_app_start` | declared package script | exact command, working directory, and likely local base URL; no process is started |
@@ -156,15 +156,16 @@ When a target cannot be found, show a non-blocking "Target unavailable" panel wi
 
 ## 8. Local source inspection
 
-The first implementation uses a deterministic scanner before asking Codex to write the final flow:
+The first implementation uses a deterministic scanner before asking Codex to write the final flow. It does not require the app to be running:
 
 - detect `package.json` scripts and framework hints
-- collect route files and route strings
+- scan conventional React/Next.js roots (`src/`, root `app/`, `pages/`, and `components/`) with de-duplicated bounded traversal
+- derive Next.js App Router paths from `app/**/page.*`, including `/` for `app/page.*`
 - collect `data-testid` values
-- collect visible button/label text from JSX/TSX where safe
+- collect source-relative static button, link, label, and `aria-label` control summaries from JSX/TSX where safe, including literal alternatives in conditional JSX
 - list existing Playwright/Cypress test names without executing them
 
-The scanner writes a compact `.demoflow/app-map.json`. When a demo is saved, DemoFlow also writes a shareable snapshot at `.demoflow/<demo-id>/app-map.json` and stores its SHA-256 fingerprint in the demo spec. The demo-local snapshot excludes machine-specific workspace paths. Codex receives this map and selected source snippets, not a full browser DOM or continuous visual stream. Opening a saved demo does not rescan source; a freshness check is explicit and returns only `current`, `stale`, or `unknown` to Codex.
+The scanner writes a compact `.demoflow/app-map.json`. When a demo is saved, DemoFlow also writes a shareable snapshot at `.demoflow/<demo-id>/app-map.json` and stores its SHA-256 fingerprint in the demo spec. The demo-local snapshot excludes machine-specific workspace paths. Codex receives this map and selected source snippets, not a full browser DOM or continuous visual stream. The proxy overlay remains the runtime verifier for chosen targets, including conditionally mounted UI. If static scanning finds no usable controls after checking all supported roots, Codex asks what the demo should prove instead of starting the app merely to discover UI. Opening a saved demo does not rescan source; a freshness check is explicit and returns only `current`, `stale`, or `unknown` to Codex.
 
 ### Branch-aware inspection
 

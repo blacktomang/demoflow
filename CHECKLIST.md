@@ -28,6 +28,9 @@
 - [x] Detect Vite/React project hints.
 - [x] Collect `data-testid` values from `src/`.
 - [x] Collect route strings and candidate visible button/label text.
+- [x] Scan root Next.js `app/`, `pages/`, and `components/` as well as `src/`, without requiring the app to run.
+- [x] Return bounded source-relative button, link, label, static `aria-label`, and test-ID summaries.
+- [x] Derive Next.js App Router paths from `app/**/page.*`.
 - [x] Write a compact `.demoflow/app-map.json`.
 - [x] Keep output bounded; do not send raw source trees or browser DOM streams to the model.
 

@@ -102,6 +102,7 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 ### Required local runtime behavior
 
 - Inspect and validate a local application start command without executing it.
+- Derive candidate routes, buttons, links, labels, test IDs, and static accessible names from supported React/Next.js source roots before the app is running; use the live overlay only to verify the generated targets.
 - Serve the app at a local proxy URL and inject the DemoFlow client overlay at runtime.
 - Highlight elements using accessible selectors, labels, or existing test IDs.
 - Present the walkthrough with a product-facing default theme, plus quiet and debug variants chosen in the saved demo spec.

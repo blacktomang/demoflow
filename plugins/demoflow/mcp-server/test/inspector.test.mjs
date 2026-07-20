@@ -1,0 +1,46 @@
+import assert from "node:assert/strict";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+import { inspectProject } from "../dist/inspector.js";
+
+test("discovers Next app-router controls from source without a running app", async () => {
+  const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-next-"));
+  await mkdir(path.join(workspacePath, "app"));
+  await writeFile(path.join(workspacePath, "package.json"), JSON.stringify({ dependencies: { next: "15", react: "19" }, scripts: { dev: "next dev" } }));
+  await writeFile(path.join(workspacePath, "app", "page.tsx"), `
+    export default function Page() {
+      return <main>
+        <button aria-label="Start a new TeachBack lesson">{busy ? "Opening lesson..." : "Preview the lesson"}</button>
+        <button>Approve and begin</button>
+        <label>Your explanation<textarea /></label>
+        <button>{isTransfer ? "Try the new case" : "Teach Nova"}</button>
+        <a href="/review">Review evidence</a>
+      </main>;
+    }
+  `);
+
+  const appMap = await inspectProject(workspacePath);
+  assert.deepEqual(appMap.routes, ["/", "/review"]);
+  assert.ok(appMap.labels.includes("Preview the lesson"));
+  assert.ok(appMap.labels.includes("Approve and begin"));
+  assert.ok(appMap.labels.includes("Teach Nova"));
+  assert.ok(appMap.labels.includes("Try the new case"));
+  assert.ok(appMap.labels.includes("Your explanation"));
+  assert.ok(appMap.controls.some((control) => control.kind === "button" && control.name === "Preview the lesson" && control.source === "app/page.tsx"));
+  assert.ok(appMap.controls.some((control) => control.kind === "button" && control.name === "Start a new TeachBack lesson"));
+  assert.ok(appMap.controls.some((control) => control.kind === "label" && control.name === "Your explanation"));
+});
+
+test("keeps src-based React control discovery", async () => {
+  const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-src-"));
+  await mkdir(path.join(workspacePath, "src"));
+  await writeFile(path.join(workspacePath, "package.json"), JSON.stringify({ dependencies: { vite: "5", react: "18" } }));
+  await writeFile(path.join(workspacePath, "src", "App.tsx"), `<button data-testid="save">Save</button>`);
+
+  const appMap = await inspectProject(workspacePath);
+  assert.deepEqual(appMap.testIds, ["save"]);
+  assert.ok(appMap.controls.some((control) => control.kind === "test-id" && control.name === "save"));
+  assert.ok(appMap.controls.some((control) => control.kind === "button" && control.name === "Save"));
+});

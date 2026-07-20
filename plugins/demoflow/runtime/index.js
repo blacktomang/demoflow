@@ -21104,20 +21104,83 @@ import { createHash } from "node:crypto";
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 var MAX_FILES = 300;
+var MAX_VALUES = 100;
 var SOURCE_EXTENSIONS = /* @__PURE__ */ new Set([".tsx", ".jsx", ".ts", ".js"]);
-async function filesUnder(root, acc = []) {
-  if (acc.length >= MAX_FILES) return acc;
+var UI_ROOTS = ["src", "app", "pages", "components"];
+async function filesUnder(root, acc, seen) {
+  if (acc.length >= MAX_FILES) return;
   for (const entry of await readdir(root, { withFileTypes: true })) {
     if (["node_modules", ".git", "dist", "build", ".next"].includes(entry.name)) continue;
     const absolute = path.join(root, entry.name);
-    if (entry.isDirectory()) await filesUnder(absolute, acc);
-    else if (SOURCE_EXTENSIONS.has(path.extname(entry.name))) acc.push(absolute);
+    if (entry.isDirectory()) await filesUnder(absolute, acc, seen);
+    else if (SOURCE_EXTENSIONS.has(path.extname(entry.name)) && !seen.has(absolute)) {
+      seen.add(absolute);
+      acc.push(absolute);
+    }
     if (acc.length >= MAX_FILES) break;
   }
-  return acc;
 }
-function unique(values, max = 100) {
+async function sourceFiles(workspacePath) {
+  const files = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const root of UI_ROOTS) await filesUnder(path.join(workspacePath, root), files, seen).catch(() => {
+  });
+  return files;
+}
+function unique(values, max = MAX_VALUES) {
   return [...new Set(values)].slice(0, max).sort();
+}
+function uniqueControls(controls) {
+  const seen = /* @__PURE__ */ new Set();
+  return controls.filter((control) => {
+    const key = `${control.kind}\0${control.name}\0${control.source}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, MAX_VALUES).sort((a, b) => a.source.localeCompare(b.source) || a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
+}
+function controlText(content) {
+  const names = [];
+  const withoutTags = content.replace(/<[^>]+>/g, " ");
+  for (const match of withoutTags.matchAll(/["'`]([^"'`]{2,80})["'`]/g)) names.push(match[1].trim());
+  const directText = withoutTags.replace(/\{[^{}]*\}/g, " ").replace(/\s+/g, " ").trim();
+  if (directText.length >= 2 && directText.length <= 80 && !/[<>{}]/.test(directText)) names.push(directText);
+  return unique(names);
+}
+function nextRoute(workspacePath, sourcePath) {
+  const relative = path.relative(path.join(workspacePath, "app"), sourcePath).split(path.sep);
+  const file = relative.pop();
+  if (!file || !/^page\.(tsx|jsx|ts|js)$/.test(file)) return null;
+  const segments = relative.filter((segment) => !/^\(.+\)$/.test(segment) && !segment.startsWith("@")).map((segment) => segment.replace(/^\[\.\.\.(.+)\]$/, ":$1*").replace(/^\[(.+)\]$/, ":$1"));
+  return `/${segments.join("/")}`.replace(/\/$/, "") || "/";
+}
+function inspectSource(source, sourcePath, workspacePath, routes, testIds, labels, controls) {
+  const relativeSource = path.relative(workspacePath, sourcePath);
+  const route = nextRoute(workspacePath, sourcePath);
+  if (route) routes.push(route);
+  for (const match of source.matchAll(/(?:path|to|href)=["'`]([^"'`]+)["'`]/g)) {
+    if (match[1].startsWith("/")) routes.push(match[1]);
+  }
+  for (const match of source.matchAll(/data-testid=["'`]([^"'`]+)["'`]/g)) {
+    const name = match[1].trim();
+    testIds.push(name);
+    controls.push({ kind: "test-id", name, source: relativeSource });
+  }
+  for (const match of source.matchAll(/<(button|a|label)\b([^>]*)>/g)) {
+    const kind = match[1] === "a" ? "link" : match[1];
+    for (const aria of match[2].matchAll(/aria-label=["'`]([^"'`]+)["'`]/g)) {
+      const name = aria[1].trim();
+      labels.push(name);
+      controls.push({ kind, name, source: relativeSource });
+    }
+  }
+  for (const match of source.matchAll(/<(button|a|label)\b[^>]*>([\s\S]*?)<\/\1>/g)) {
+    const kind = match[1] === "a" ? "link" : match[1];
+    for (const name of controlText(match[2])) {
+      labels.push(name);
+      controls.push({ kind, name, source: relativeSource });
+    }
+  }
 }
 function fingerprintAppMap(appMap) {
   return createHash("sha256").update(JSON.stringify({
@@ -21125,7 +21188,8 @@ function fingerprintAppMap(appMap) {
     scripts: appMap.scripts,
     routes: appMap.routes,
     testIds: appMap.testIds,
-    labels: appMap.labels
+    labels: appMap.labels,
+    controls: appMap.controls
   })).digest("hex");
 }
 async function inspectProject(workspacePath) {
@@ -21136,14 +21200,9 @@ async function inspectProject(workspacePath) {
   const routes = [];
   const testIds = [];
   const labels = [];
-  for (const sourcePath of await filesUnder(path.join(workspacePath, "src")).catch(() => [])) {
-    const source = await readFile(sourcePath, "utf8");
-    for (const match of source.matchAll(/data-testid=["'`]([^"'`]+)["'`]/g)) testIds.push(match[1]);
-    for (const match of source.matchAll(/(?:path|to)=["'`]([^"'`]+)["'`]/g)) routes.push(match[1]);
-    for (const match of source.matchAll(/<(?:button|label)[^>]*>\s*([^<{]{2,80})\s*</g)) {
-      const value = match[1].trim();
-      if (!/[>{}()]/.test(value)) labels.push(value);
-    }
+  const controls = [];
+  for (const sourcePath of await sourceFiles(workspacePath)) {
+    inspectSource(await readFile(sourcePath, "utf8"), sourcePath, workspacePath, routes, testIds, labels, controls);
   }
   const appMapBase = {
     workspacePath,
@@ -21151,7 +21210,8 @@ async function inspectProject(workspacePath) {
     scripts: Object.keys(packageJson.scripts ?? {}),
     routes: unique(routes),
     testIds: unique(testIds),
-    labels: unique(labels)
+    labels: unique(labels),
+    controls: uniqueControls(controls)
   };
   const appMap = { ...appMapBase, fingerprint: fingerprintAppMap(appMapBase) };
   const outputDir = path.join(workspacePath, ".demoflow");

@@ -2,7 +2,7 @@
 
 Turn a local web application into a live, explainable guided demo with a Codex prompt.
 
-DemoFlow reads a local project to create a versioned `demo.spec.json`, then serves the running app through a loopback-only proxy that injects a temporary walkthrough overlay. The original app remains interactive and its source code is not changed.
+DemoFlow reads a local project to create a versioned `demo.spec.json`, then serves the running app through a loopback-only proxy that injects a temporary walkthrough overlay. It derives candidate routes and controls from React/Next.js source before the app starts, then verifies the chosen targets against the real running app. The original app remains interactive and its source code is not changed.
 
 Every generated walkthrough can begin with a short, product-facing introduction: what changed or what the audience is about to see, before the first highlighted interaction.
 
@@ -50,7 +50,7 @@ DemoFlow defaults to `presenter`: a quiet, product-facing walkthrough intended f
 
 ### Saved demos and freshness
 
-Each saved demo contains an editable `demo.spec.json` and a small, shareable `app-map.json` snapshot. The snapshot contains framework hints, scripts, routes, test IDs, labels, and a SHA-256 fingerprint—never raw source files, local paths, form data, or credentials.
+Each saved demo contains an editable `demo.spec.json` and a small, shareable `app-map.json` snapshot. The snapshot contains framework hints, scripts, routes, test IDs, source-relative UI control summaries, labels, and a SHA-256 fingerprint—never raw source files, local paths, form data, or credentials.
 
 Running a saved demo uses its existing spec and does not re-inspect the project. When a developer asks to validate freshness, DemoFlow rebuilds the compact map locally and compares fingerprints. A mismatch means the demo may be stale; it does not prove that the demo is broken. New-demo creation reuses its preceding inspection map when saving, avoiding a duplicate scan. Saved `.demoflow/` folders remain ignored by Git by default, but a team can intentionally commit selected demo folders to share them.
 
