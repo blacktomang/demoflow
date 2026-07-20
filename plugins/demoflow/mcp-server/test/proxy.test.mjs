@@ -54,6 +54,9 @@ test("serves the spec and overlay from reserved local paths", async () => {
   const overlay = await (await fetch(`${preview.url}/__demoflow/overlay.js`)).text();
   assert.equal(spec.steps[0].id, "cta");
   assert.match(overlay, /__demoflow_root/);
+  assert.match(overlay, /Demo complete/);
+  assert.match(overlay, /associated form control/);
+  assert.match(overlay, /overlapsTarget/);
 });
 
 test("forwards decoded compressed stylesheets without stale compression headers", async () => {

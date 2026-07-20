@@ -52,13 +52,13 @@ DemoFlow defaults to `presenter`: a quiet, product-facing walkthrough intended f
 
 Each saved demo contains an editable `demo.spec.json` and a small, shareable `app-map.json` snapshot. The snapshot contains framework hints, scripts, routes, test IDs, source-relative UI control summaries, labels, and a SHA-256 fingerprint—never raw source files, local paths, form data, or credentials.
 
-Running a saved demo uses its existing spec and does not re-inspect the project. When a developer asks to validate freshness, DemoFlow rebuilds the compact map locally and compares fingerprints. A mismatch means the demo may be stale; it does not prove that the demo is broken. New-demo creation reuses its preceding inspection map when saving, avoiding a duplicate scan. Saved `.demoflow/` folders remain ignored by Git by default, but a team can intentionally commit selected demo folders to share them.
+Running a saved demo uses its existing spec and does not re-inspect the project. When a developer asks to validate freshness, DemoFlow rebuilds the compact map locally and compares fingerprints. A mismatch means the demo may be stale; it does not prove that the demo is broken. New-demo creation reuses its preceding inspection map when saving, avoiding a duplicate scan. DemoFlow never edits a target project's `.gitignore`: teams can ignore `.demoflow/` locally or intentionally commit selected demo folders to share them.
 
 DemoFlow runs its bundled runtime with the developer's own Node.js 20+ installation. It detects a missing or outdated Node.js version and prints a clear fix; it never depends on an internal ChatGPT/Codex Node runtime.
 
 DemoFlow validates that the target app is reachable before it creates a preview. Use the exact `Local:` URL printed by the app's dev server; `localhost` and `127.0.0.1` are both loopback addresses but can be served differently by local tooling.
 
-DemoFlow supports React and Next.js UI that mounts conditionally after an action. When the next target is not in the DOM yet, the overlay waits and retries for up to five seconds before it reports a failed step.
+DemoFlow supports React and Next.js UI that mounts conditionally after an action. When the next target is not in the DOM yet, the overlay waits and retries for up to five seconds before it reports a failed step. A label-based form target resolves to the associated input or textarea, so the walkthrough highlights the control that receives typing and can advance after its real submit action. The tooltip prefers above the real control and uses collision-aware fallback placement, keeping the active button or input visible and clickable. The last real action leads to a clear **Demo complete** panel with Restart and Close controls. Before writing a new flow, Codex ranks up to three likely customer-facing starting actions from the source map. It favors actions such as Preview or Start, deprioritizes Restore/Reset/Seed/Debug controls, and asks the developer to choose when the request has not named a start action.
 
 ### Demo this branch
 
@@ -68,7 +68,7 @@ For a text or select field that takes effect immediately, Codex saves `advance: 
 
 ### Repairing a browser failure
 
-If Demo Mode says a target is unavailable or ambiguous, tell Codex: `Repair this DemoFlow preview.` The browser has already saved a local report containing the failed step, target, route, and reason, plus bounded diagnostics from app error banners, browser errors, and unhandled rejections. Codex reads that report and updates only the broken step. It cannot repair silently while you are in the browser because an MCP server cannot wake a completed Codex task; this avoids hidden retries and unwanted restarts.
+If Demo Mode says a target is unavailable or ambiguous, select **Copy repair request** in the browser and paste it into Codex—or simply tell Codex: `Repair this DemoFlow preview.` The browser has already saved a local report containing the failed step, target, route, and reason, plus bounded diagnostics from app error banners, browser errors, and unhandled rejections. Codex reads that report and updates only the broken step. It cannot repair silently while you are in the browser because an MCP server cannot wake a completed Codex task; this avoids hidden retries and unwanted restarts.
 
 ## Install and test from a local checkout
 
@@ -153,4 +153,4 @@ Codex was used to define the product flow, generate the structured demo specific
 
 The current first target is macOS + Node.js 20+ + a Vite/React sample app. The MCP server source is at `plugins/demoflow/mcp-server`.
 
-No application source files are changed to enable Demo Mode. Generated specs are intended to live in `.demoflow/`, which is ignored by Git by default.
+No application source files are changed to enable Demo Mode. Generated specs live in `.demoflow/`; DemoFlow does not alter the target repository's Git-ignore rules.

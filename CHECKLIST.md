@@ -30,6 +30,7 @@
 - [x] Collect route strings and candidate visible button/label text.
 - [x] Scan root Next.js `app/`, `pages/`, and `components/` as well as `src/`, without requiring the app to run.
 - [x] Return bounded source-relative button, link, label, static `aria-label`, and test-ID summaries.
+- [x] Rank source-discovered product starts and require a developer choice when a request leaves more than one viable journey.
 - [x] Derive Next.js App Router paths from `app/**/page.*`.
 - [x] Write a compact `.demoflow/app-map.json`.
 - [x] Keep output bounded; do not send raw source trees or browser DOM streams to the model.
@@ -73,6 +74,7 @@
 - [x] Inject the DemoFlow bootstrap script into HTML responses before `</head>`.
 - [x] Serve `/__demoflow/overlay.js`, `/__demoflow/spec.json`, and `/__demoflow/status` locally.
 - [x] Add `demoflow.create_preview` and `demoflow.open_preview`.
+- [x] Provide a copyable browser repair request alongside structured local preview failures.
 - [x] Verify the app works through the proxy URL.
 
 **Done when:** `http://127.0.0.1:<preview-port>` renders the same sample app plus a temporary injected script.

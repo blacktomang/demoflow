@@ -55,6 +55,7 @@ The plugin skill must produce a reviewable `demo.spec.json` before opening the p
 | `demoflow.list_demos` | workspace path | saved demo titles, goals, steps, and saved fingerprints without a source scan |
 | `demoflow.check_demo_freshness` | workspace path + demo ID | `current`, `stale`, or `unknown` after an on-demand compact scan |
 | `demoflow.inspect_project` | workspace path | framework, scripts, route, test-ID, and source-relative UI-control summary |
+| `demoflow.suggest_demo_starts` | workspace path + optional requested outcome | up to three ranked customer-facing source controls; a choice aid, not a generated spec |
 | `demoflow.inspect_branch_changes` | workspace path + optional base branch | local base/current branches, commit SHAs, and changed-file summary for a branch-aware demo |
 | `demoflow.write_spec` | demo ID + validated spec | saved path, demo-local app-map snapshot, and fingerprint |
 | `demoflow.prepare_app_start` | declared package script | exact command, working directory, and likely local base URL; no process is started |
@@ -66,7 +67,7 @@ No generic shell-command tool is exposed to the model. The MCP server never exec
 
 ### Preview lifecycle
 
-Creating a preview is a one-shot handoff: once `create_preview` returns its URL, Codex gives that URL to the developer and finishes the request. Codex must not use an in-app browser or repeated `open_preview` calls as a completion check. Browser failures are retained as structured local reports; on the developer's explicit “repair” request, Codex reads the report through `open_preview` and fixes only the failed step. MCP cannot wake or message an already-completed Codex task, so DemoFlow never silently retries or recreates a preview.
+Creating a preview is a one-shot handoff: once `create_preview` returns its URL, Codex gives that URL to the developer and finishes the request. Codex must not use an in-app browser or repeated `open_preview` calls as a completion check. Browser failures are retained as structured local reports; the failure panel offers a copyable repair request. On the developer's explicit “repair” request, Codex reads the report through `open_preview` and fixes only the failed step. MCP cannot wake or message an already-completed Codex task, so DemoFlow never silently retries or recreates a preview.
 
 ## 5. Specification format
 
@@ -146,13 +147,13 @@ The overlay has three layers:
 
 The dimmer and target highlight use `pointer-events: none`; the real app stays interactive. The control bar alone uses `pointer-events: auto`. If an exact target is outside the viewport, the overlay scrolls it into view before positioning the tooltip beside it. Restart returns to the configured `startPath`; it never attempts to undo arbitrary application state step by step.
 
-The overlay listens for `click`, `input`, `submit`, `popstate`, and URL changes. It resolves the next step after the configured `advance` condition becomes true. For a next-step target that is not yet mounted, it shows a neutral waiting state and retries after DOM mutations and on a short timer for up to five seconds. Only then does it show and report a target failure. This supports React and Next.js conditional rendering, client transitions, and asynchronous state updates without treating them as immediate errors.
+The overlay listens for `click`, `input`, `submit`, `popstate`, and URL changes. A label target is resolved to its associated input, textarea, select, or editable control when one exists, so `input-and-click` steps highlight and observe the actual interactive field. Its placement engine prefers a tooltip above the active control, then below or beside it only when its rendered rectangle does not intersect the control; the real button or input stays visible and clickable. It resolves the next step after the configured `advance` condition becomes true. For a next-step target that is not yet mounted, it shows a neutral waiting state and retries after DOM mutations and on a short timer for up to five seconds. Only then does it show and report a target failure. This supports React and Next.js conditional rendering, client transitions, and asynchronous state updates without treating them as immediate errors. After the final advance condition, it shows a Demo complete panel with Restart and Close controls; it never silently removes the walkthrough.
 
 Use `input-target` for a form control when typed or selected content should move the walkthrough forward. It advances only when the event belongs to the highlighted target and its value has the configured `minLength` (default: one non-whitespace character).
 
 Use `input-and-click` when filling a control and clicking its real submit button form one product action. The overlay waits until the highlighted control contains the configured minimum content, then advances only after the declared `submitTarget` receives the real click.
 
-When a target cannot be found, show a non-blocking "Target unavailable" panel with Exit and Skip controls, and report a structured local failure to the MCP status endpoint: failure type, step ID, current path, intended target, and timestamp. The overlay also reports window errors, unhandled rejections, and diagnostic text from explicit app alert elements (`[role=alert]`, `.alert`, or `[data-demoflow-error]`). Messages are capped at 280 characters and redact email addresses and token-like values; no arbitrary DOM, form values, cookies, or credentials are collected. When more than one control matches without an explicit `occurrence`, show a "Target needs a clearer label" panel rather than choosing an arbitrary element.
+When a target cannot be found, show a non-blocking "Target unavailable" panel with Restart, Copy repair request, and Exit controls, and report a structured local failure to the MCP status endpoint: failure type, step ID, current path, intended target, and timestamp. The overlay also reports window errors, unhandled rejections, and diagnostic text from explicit app alert elements (`[role=alert]`, `.alert`, or `[data-demoflow-error]`). Messages are capped at 280 characters and redact email addresses and token-like values; no arbitrary DOM, form values, cookies, or credentials are collected. When more than one control matches without an explicit `occurrence`, show a "Target needs a clearer label" panel rather than choosing an arbitrary element.
 
 ## 8. Local source inspection
 
@@ -166,6 +167,8 @@ The first implementation uses a deterministic scanner before asking Codex to wri
 - list existing Playwright/Cypress test names without executing them
 
 The scanner writes a compact `.demoflow/app-map.json`. When a demo is saved, DemoFlow also writes a shareable snapshot at `.demoflow/<demo-id>/app-map.json` and stores its SHA-256 fingerprint in the demo spec. The demo-local snapshot excludes machine-specific workspace paths. Codex receives this map and selected source snippets, not a full browser DOM or continuous visual stream. The proxy overlay remains the runtime verifier for chosen targets, including conditionally mounted UI. If static scanning finds no usable controls after checking all supported roots, Codex asks what the demo should prove instead of starting the app merely to discover UI. Opening a saved demo does not rescan source; a freshness check is explicit and returns only `current`, `stale`, or `unknown` to Codex.
+
+For a new demo, `suggest_demo_starts` ranks source-discovered buttons and links. It gives a small boost to a control matching the developer's requested outcome, favors visible product verbs such as Preview, Start, Open, and Join, and sharply deprioritizes Restore, Reset, Seed, Fixture, and Debug controls. The score is an explainable selection aid only. When more than one viable start remains and the developer has not named one, Codex presents up to three journeys and waits for a choice before writing a spec.
 
 ### Branch-aware inspection
 

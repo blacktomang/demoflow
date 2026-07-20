@@ -21548,6 +21548,49 @@ async function inspectBranchChanges(workspacePath, requestedBaseBranch) {
   };
 }
 
+// src/suggestions.ts
+var primaryAction = /\b(preview|start|begin|continue|open|view|show|create|join|approve|submit|save|complete|try)\b/i;
+var setupAction = /\b(restore|reset|seed|hydrate|fixture|debug|developer|devtools|migration)\b/i;
+function intentTerms(intent) {
+  return [...new Set(intent.toLocaleLowerCase().match(/[a-z0-9]{3,}/g) ?? [])];
+}
+function suggestDemoStarts(appMap, intent = "") {
+  const terms = intentTerms(intent);
+  const candidates = appMap.controls.filter((control) => control.kind === "button" || control.kind === "link").map((control) => {
+    const name = control.name.toLocaleLowerCase();
+    const rationale = [];
+    let score = control.kind === "button" ? 2 : 1;
+    const isSetup = setupAction.test(name);
+    if (isSetup) {
+      score -= 40;
+      rationale.push("Looks like setup, restore, reset, or developer-only UI");
+    }
+    if (primaryAction.test(name)) {
+      score += 12;
+      rationale.push("Looks like a visible user action");
+    }
+    const matchedTerms = terms.filter((term) => name.includes(term));
+    if (matchedTerms.length) {
+      score += matchedTerms.length * 4;
+      rationale.push(`Matches request: ${matchedTerms.join(", ")}`);
+    }
+    return {
+      control,
+      target: { role: control.kind, name: control.name },
+      score,
+      category: isSetup ? "setup-action" : primaryAction.test(name) ? "primary-action" : "neutral-action",
+      rationale
+    };
+  });
+  const unique2 = /* @__PURE__ */ new Set();
+  return candidates.sort((a, b) => b.score - a.score || a.control.name.localeCompare(b.control.name) || a.control.source.localeCompare(b.control.source)).filter((candidate) => {
+    const key = `${candidate.control.kind}\0${candidate.control.name}`;
+    if (unique2.has(key)) return false;
+    unique2.add(key);
+    return true;
+  }).slice(0, 3);
+}
+
 // src/index.ts
 var server = new McpServer({ name: "demoflow", version: "0.1.0" });
 var lastInspectedAppMaps = /* @__PURE__ */ new Map();
@@ -21581,6 +21624,15 @@ server.tool(
   async ({ workspacePath }) => {
     const appMap = await inspectAndRemember(workspacePath);
     return { content: [{ type: "text", text: JSON.stringify(appMap, null, 2) }] };
+  }
+);
+server.tool(
+  "suggest_demo_starts",
+  "Rank up to three likely customer-facing start controls from the inspected local app map. Restore, reset, seed, fixture, and developer controls are deprioritized. Use this to propose choices; it does not create a demo spec.",
+  { workspacePath: external_exports.string(), intent: external_exports.string().optional().describe("The developer's requested demo outcome, used only to rank source-discovered controls") },
+  async ({ workspacePath, intent }) => {
+    const appMap = lastInspectedAppMaps.get(workspacePath) ?? await inspectAndRemember(workspacePath);
+    return { content: [{ type: "text", text: JSON.stringify({ intent: intent ?? "", candidates: suggestDemoStarts(appMap, intent) }, null, 2) }] };
   }
 );
 server.tool(
@@ -21629,11 +21681,12 @@ server.tool(
 );
 server.tool(
   "open_preview",
-  "Return the active local Demo Mode URL, including structured browser failure reports for a coding-agent repair turn.",
+  "Return the active local Demo Mode URL, including structured browser failure reports and a copyable repair request for a coding-agent repair turn.",
   { previewId: external_exports.string().min(1) },
   async ({ previewId }) => {
     const preview = getPreview(previewId);
-    return { content: [{ type: "text", text: JSON.stringify(preview, null, 2) }] };
+    const repairRequest = preview.failures.length || preview.diagnostics.length ? `Repair DemoFlow preview ${preview.id}. Read its browser failure report with demoflow.open_preview, then revise only the affected step in demo ${preview.demoId}; do not change application source code.` : void 0;
+    return { content: [{ type: "text", text: JSON.stringify({ ...preview, repairRequest }, null, 2) }] };
   }
 );
 server.tool(

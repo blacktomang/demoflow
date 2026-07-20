@@ -32,6 +32,13 @@
       #__demoflow_intro_card h1 { margin: 0 0 12px; font-family: Georgia, "Times New Roman", serif; font-size: 31px; line-height: 1.06; letter-spacing: -.04em; }
       #__demoflow_intro_card p { margin: 0 0 22px; color: var(--df-muted); font-size: 16px; line-height: 1.5; }
       #__demoflow_intro_card button { border: 0; border-radius: 8px; padding: 10px 14px; color: #fff; background: var(--df-accent); cursor: pointer; font: inherit; font-weight: 700; }
+      #__demoflow_complete { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: auto; }
+      #__demoflow_complete_card { width: min(460px, 100%); padding: 30px; color: var(--df-ink); background: var(--df-card); border: 1px solid var(--df-rule); border-radius: 18px; box-shadow: 0 26px 80px var(--df-shadow); }
+      #__demoflow_complete_card span { display: block; margin-bottom: 12px; color: var(--df-accent); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+      #__demoflow_complete_card h1 { margin: 0 0 12px; font-family: Georgia, "Times New Roman", serif; font-size: 31px; line-height: 1.06; letter-spacing: -.04em; }
+      #__demoflow_complete_card p { margin: 0 0 22px; color: var(--df-muted); font-size: 16px; line-height: 1.5; }
+      #__demoflow_complete_card button { border: 0; border-radius: 8px; padding: 10px 14px; color: #fff; background: var(--df-accent); cursor: pointer; font: inherit; font-weight: 700; }
+      #__demoflow_complete_card button + button { margin-left: 10px; color: var(--df-ink); background: transparent; border: 1px solid var(--df-rule); }
     </style>
     <div id="__demoflow_dim"></div><div id="__demoflow_halo"></div>
     <aside id="__demoflow_card" role="status"><div id="__demoflow_kicker">Guided walkthrough</div><h2></h2><p></p><div id="__demoflow_controls"><button data-action="restart">Restart</button><button data-action="skip">Skip</button><span id="__demoflow_progress"></span><button data-action="exit">End tour</button></div></aside>`;
@@ -61,10 +68,17 @@
   function resolveTarget(target) {
     let candidates = [];
     if (target.testId) candidates = [...document.querySelectorAll(`[data-testid="${CSS.escape(target.testId)}"]`)];
-    else if (target.label) candidates = [
-      ...[...document.querySelectorAll("label")].filter((node) => node.textContent.trim() === target.label),
-      ...document.querySelectorAll(`[aria-label="${CSS.escape(target.label)}"]`),
-    ];
+    else if (target.label) {
+      const matchingLabels = [...document.querySelectorAll("label")].filter((node) => node.textContent.trim() === target.label);
+      // A label is source evidence for the field, not the element that receives
+      // input. Resolve its associated form control so input-and-click can observe
+      // typing and the highlight does not sit on a non-interactive label.
+      candidates = matchingLabels.flatMap((label) => {
+        const associated = label.htmlFor ? document.getElementById(label.htmlFor) : label.querySelector("input, textarea, select, [contenteditable='true']");
+        return associated ? [associated] : [label];
+      });
+      candidates.push(...document.querySelectorAll(`[aria-label="${CSS.escape(target.label)}"]`));
+    }
     else if (target.role && target.name) {
       const selector = `[role="${CSS.escape(target.role)}"], ${CSS.escape(target.role)}`;
       const expected = normalizedName(target.name);
@@ -141,6 +155,7 @@
 
   function clearEmpty() { root.querySelector("#__demoflow_empty")?.remove(); }
   function clearIntro() { root.querySelector("#__demoflow_intro")?.remove(); }
+  function clearComplete() { root.querySelector("#__demoflow_complete")?.remove(); }
   function showIntro() {
     if (root.querySelector("#__demoflow_intro")) return;
     clearEmpty(); clearTargetMarker(); state.target = null;
@@ -154,6 +169,20 @@
     const begin = document.createElement("button"); begin.type = "button"; begin.textContent = "Begin demo";
     begin.onclick = () => { state.introAcknowledged = true; clearIntro(); render(); };
     introCard.append(kicker, introTitle, introBody, begin); intro.append(introCard); root.append(intro);
+  }
+  function showComplete() {
+    if (root.querySelector("#__demoflow_complete")) return;
+    clearEmpty(); clearIntro(); clearTargetMarker(); state.target = null;
+    root.querySelector("#__demoflow_halo").style.display = "none";
+    card.style.display = "none";
+    const complete = document.createElement("div"); complete.id = "__demoflow_complete";
+    const completeCard = document.createElement("section"); completeCard.id = "__demoflow_complete_card";
+    const kicker = document.createElement("span"); kicker.textContent = "Walkthrough complete";
+    const completeTitle = document.createElement("h1"); completeTitle.textContent = "Demo complete";
+    const completeBody = document.createElement("p"); completeBody.textContent = `You completed “${state.spec.title}”. The real app remains open for discussion.`;
+    const restartButton = document.createElement("button"); restartButton.type = "button"; restartButton.textContent = "Restart demo"; restartButton.onclick = restart;
+    const closeButton = document.createElement("button"); closeButton.type = "button"; closeButton.textContent = "Close demo"; closeButton.onclick = exit;
+    completeCard.append(kicker, completeTitle, completeBody, restartButton, closeButton); complete.append(completeCard); root.append(complete);
   }
   function stopWaiting() {
     if (state.waitTimer) clearTimeout(state.waitTimer);
@@ -192,13 +221,22 @@
     panel.innerHTML = waitingForSkippedStep
       ? `<strong>Complete the previous action first</strong><p>“${step.tooltip.title}” appears after “${state.skippedStep.tooltip.title}” is completed in the real app. Skipping only hides guidance; it does not perform the action.</p><button>Show previous instruction</button> <button>Exit</button>`
       : reason === "ambiguous"
-        ? `<strong>Target needs a clearer label</strong><p>DemoFlow found more than one possible control for “${step.tooltip.title}”. This repair report is ready for Codex.</p><button>Restart demo</button> <button>Exit</button>`
-        : `<strong>Target unavailable</strong><p>DemoFlow could not find “${step.id}” on this screen. This repair report is ready for Codex.</p><button>Restart demo</button> <button>Exit</button>`;
+        ? `<strong>Target needs a clearer label</strong><p>DemoFlow found more than one possible control for “${step.tooltip.title}”. Copy the repair request, then paste it into Codex.</p><button>Restart demo</button> <button data-action="copy-repair">Copy repair request</button> <button>Exit</button>`
+        : `<strong>Target unavailable</strong><p>DemoFlow could not find “${step.id}” on this screen. Copy the repair request, then paste it into Codex.</p><button>Restart demo</button> <button data-action="copy-repair">Copy repair request</button> <button>Exit</button>`;
     panel.querySelectorAll("button")[0].onclick = () => {
       if (waitingForSkippedStep) { state.index -= 1; state.skippedStep = null; render(); }
       else restart();
     };
-    panel.querySelectorAll("button")[1].onclick = exit;
+    const buttons = panel.querySelectorAll("button");
+    if (!waitingForSkippedStep) {
+      const copyButton = panel.querySelector('[data-action="copy-repair"]');
+      copyButton.onclick = async () => {
+        const request = `Repair this DemoFlow preview. The step “${step.tooltip.title}” (${step.id}) failed on ${location.pathname}: ${reason === "ambiguous" ? "more than one target matched" : "the target did not appear"}. Call demoflow.open_preview for the structured report, then repair only this demo spec step without changing application source code.`;
+        try { await navigator.clipboard.writeText(request); copyButton.textContent = "Copied — paste into Codex"; }
+        catch { window.prompt("Copy this repair request:", request); }
+      };
+      buttons[2].onclick = exit;
+    } else buttons[1].onclick = exit;
     root.append(panel); reportFailure(step, reason);
   }
 
@@ -207,9 +245,28 @@
     halo.style.display = "block";
     halo.style.left = `${rect.left - 5}px`; halo.style.top = `${rect.top - 5}px`;
     halo.style.width = `${rect.width + 4}px`; halo.style.height = `${rect.height + 4}px`;
-    const top = Math.min(window.innerHeight - card.offsetHeight - 16, Math.max(16, rect.bottom + 18));
-    const left = Math.min(window.innerWidth - card.offsetWidth - 16, Math.max(16, rect.left));
-    card.style.top = `${top}px`; card.style.left = `${left}px`;
+    const gap = 18;
+    const width = card.offsetWidth;
+    const height = card.offsetHeight;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const bounds = { left: 16, top: 16, right: window.innerWidth - 16, bottom: window.innerHeight - 16 };
+    const overlapsTarget = (left, top) => left < rect.right + gap && left + width > rect.left - gap && top < rect.bottom + gap && top + height > rect.top - gap;
+    const fits = (left, top) => left >= bounds.left && top >= bounds.top && left + width <= bounds.right && top + height <= bounds.bottom;
+
+    // Preserve the real action as the highest priority. For bottom-of-page
+    // controls this places the explanation above the button instead of over it.
+    const candidates = [
+      { left: clamp(rect.left, bounds.left, bounds.right - width), top: rect.top - height - gap },
+      { left: clamp(rect.left, bounds.left, bounds.right - width), top: rect.bottom + gap },
+      { left: rect.right + gap, top: clamp(rect.top + (rect.height - height) / 2, bounds.top, bounds.bottom - height) },
+      { left: rect.left - width - gap, top: clamp(rect.top + (rect.height - height) / 2, bounds.top, bounds.bottom - height) },
+    ];
+    const placement = candidates.find(({ left, top }) => fits(left, top) && !overlapsTarget(left, top))
+      // At very small viewport sizes a non-overlapping card may be impossible.
+      // Keep its edge as far from the target as possible rather than covering it.
+      ?? candidates.map(({ left, top }) => ({ left: clamp(left, bounds.left, bounds.right - width), top: clamp(top, bounds.top, bounds.bottom - height) }))
+        .sort((a, b) => Math.abs(a.top - rect.top) - Math.abs(b.top - rect.top))[0];
+    card.style.top = `${placement.top}px`; card.style.left = `${placement.left}px`;
   }
 
   function reveal(target) {
@@ -249,7 +306,8 @@
 
   function render() {
     clearEmpty();
-    if (!state.spec || state.index >= state.spec.steps.length) return exit();
+    if (!state.spec) return exit();
+    if (state.index >= state.spec.steps.length) return showComplete();
     if (state.spec.intro && !state.introAcknowledged) return showIntro();
     const step = state.spec.steps[state.index];
     if (step.path && location.pathname !== step.path) { waitForTarget({ ...step, id: `${step.id} (waiting for ${step.path})` }, "missing"); return; }
@@ -257,7 +315,12 @@
     if (!resolved.target) { waitForTarget(step, resolved.ambiguous ? "ambiguous" : "missing"); return; }
     const target = resolved.target;
     stopWaiting(); state.target = target; state.skippedStep = null; markTarget(target, step);
-    card.style.display = "block"; title.textContent = step.tooltip.title; body.textContent = step.tooltip.body;
+    card.style.display = "block"; title.textContent = step.tooltip.title;
+    const actionHint = step.advance.type === "input-and-click"
+      ? ` Type your response, then select “${step.advance.submitTarget.name}”.`
+      : step.advance.type === "input-target" ? " Type your response to continue."
+        : step.advance.type === "click-target" ? " Select the highlighted control to continue." : "";
+    body.textContent = `${step.tooltip.body}${actionHint}`;
     progress.textContent = `${state.index + 1} / ${state.spec.steps.length}`;
     reveal(target); requestAnimationFrame(() => position(target));
   }
@@ -271,6 +334,7 @@
     state.failedTargetKeys.clear();
     state.filledStepKeys.clear();
     clearTargetMarker();
+    clearComplete();
     stopWaiting();
 
     // Browsers can treat assigning the current URL as a no-op. Re-resolving here

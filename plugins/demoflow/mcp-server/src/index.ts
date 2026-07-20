@@ -6,6 +6,7 @@ import { writeDemoSpec, DemoSpecSchema, listDemoSpecs, readDemoSpec } from "./sp
 import { prepareAppStart } from "./start-command.js";
 import { createPreview, getPreview, stopPreview } from "./proxy.js";
 import { inspectBranchChanges } from "./branch.js";
+import { suggestDemoStarts } from "./suggestions.js";
 
 const server = new McpServer({ name: "demoflow", version: "0.1.0" });
 const lastInspectedAppMaps = new Map<string, AppMap>();
@@ -43,6 +44,16 @@ server.tool(
   async ({ workspacePath }) => {
     const appMap = await inspectAndRemember(workspacePath);
     return { content: [{ type: "text", text: JSON.stringify(appMap, null, 2) }] };
+  },
+);
+
+server.tool(
+  "suggest_demo_starts",
+  "Rank up to three likely customer-facing start controls from the inspected local app map. Restore, reset, seed, fixture, and developer controls are deprioritized. Use this to propose choices; it does not create a demo spec.",
+  { workspacePath: z.string(), intent: z.string().optional().describe("The developer's requested demo outcome, used only to rank source-discovered controls") },
+  async ({ workspacePath, intent }) => {
+    const appMap = lastInspectedAppMaps.get(workspacePath) ?? await inspectAndRemember(workspacePath);
+    return { content: [{ type: "text", text: JSON.stringify({ intent: intent ?? "", candidates: suggestDemoStarts(appMap, intent) }, null, 2) }] };
   },
 );
 
@@ -95,11 +106,14 @@ server.tool(
 
 server.tool(
   "open_preview",
-  "Return the active local Demo Mode URL, including structured browser failure reports for a coding-agent repair turn.",
+  "Return the active local Demo Mode URL, including structured browser failure reports and a copyable repair request for a coding-agent repair turn.",
   { previewId: z.string().min(1) },
   async ({ previewId }) => {
     const preview = getPreview(previewId);
-    return { content: [{ type: "text", text: JSON.stringify(preview, null, 2) }] };
+    const repairRequest = preview.failures.length || preview.diagnostics.length
+      ? `Repair DemoFlow preview ${preview.id}. Read its browser failure report with demoflow.open_preview, then revise only the affected step in demo ${preview.demoId}; do not change application source code.`
+      : undefined;
+    return { content: [{ type: "text", text: JSON.stringify({ ...preview, repairRequest }, null, 2) }] };
   },
 );
 

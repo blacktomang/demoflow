@@ -44,7 +44,7 @@ They want a reusable walkthrough, but this release intentionally prioritizes the
 
 1. Produce a usable demo from one clear natural-language goal.
 2. Execute against the real local application, not a fake screenshot-only prototype.
-3. Generate an editable structured demo flow without modifying project source code.
+3. Propose a small, explainable choice of customer-facing demo starts, then generate an editable structured demo flow without modifying project source code.
 4. Keep all project execution and artifacts local by default.
 5. Make the Codex integration visibly essential, not decorative.
 6. Be installable and testable by a hackathon judge in minutes.
@@ -102,7 +102,7 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 ### Required local runtime behavior
 
 - Inspect and validate a local application start command without executing it.
-- Derive candidate routes, buttons, links, labels, test IDs, and static accessible names from supported React/Next.js source roots before the app is running; use the live overlay only to verify the generated targets.
+- Derive candidate routes, buttons, links, labels, test IDs, and static accessible names from supported React/Next.js source roots before the app is running; rank likely user-facing starting controls while deprioritizing restore/reset/seed/debug UI, then use the live overlay only to verify the developer-chosen targets.
 - Serve the app at a local proxy URL and inject the DemoFlow client overlay at runtime.
 - Highlight elements using accessible selectors, labels, or existing test IDs.
 - Present the walkthrough with a product-facing default theme, plus quiet and debug variants chosen in the saved demo spec.
@@ -198,6 +198,7 @@ The proxy does not infer product intent from the page alone. It serves the live 
 | Tool | Purpose |
 | --- | --- |
 | `demoflow.inspect_project` | Return framework, scripts, routes, likely entry points, and existing E2E test hints |
+| `demoflow.suggest_demo_starts` | Rank up to three likely customer-facing source controls for a stated demo outcome; it proposes choices but never writes a spec |
 | `demoflow.list_demos` | List saved local demo specs without scanning project source |
 | `demoflow.check_demo_freshness` | On-demand comparison of a saved demo fingerprint with the current compact app map |
 | `demoflow.prepare_app_start` | Validate a declared package script and return its exact command, working directory, and likely local URL without executing it |
@@ -208,7 +209,7 @@ The proxy does not infer product intent from the page alone. It serves the live 
 
 The MCP server exposes no generic shell-command tool and never starts a target-app process. `prepare_app_start` only returns a command selected from declared project scripts. Codex executes that returned command in its normal terminal session, which surfaces the native approve / deny / explain approval prompt. Codex owns the resulting app process and can stop it through the same session.
 
-A preview is a one-shot handoff. Once its local URL is returned, the developer uses it directly; Codex does not open the in-app browser to re-check the walkthrough or poll it for completion. A browser failure is saved as a structured local repair report. When the developer asks Codex to repair the demo, it reads that report and fixes the affected step; an MCP server cannot wake an already-completed Codex task automatically. DemoFlow only retries after the developer explicitly asks, preventing repeated restart and permission loops.
+A preview is a one-shot handoff. Once its local URL is returned, the developer uses it directly; Codex does not open the in-app browser to re-check the walkthrough or poll it for completion. A browser failure is saved as a structured local repair report and the overlay offers a copyable repair request. When the developer pastes that request or asks Codex to repair the demo, it reads the report and fixes the affected step; an MCP server cannot wake an already-completed Codex task automatically. DemoFlow only retries after the developer explicitly asks, preventing repeated restart and permission loops.
 
 ## 11. Demo planning and execution
 
