@@ -1,6 +1,6 @@
 (() => {
   const targetWaitMs = 5_000;
-  const state = { spec: null, index: 0, target: null, markedTarget: null, skippedStep: null, observer: null, reportedFailures: new Set(), reportedDiagnostics: new Set(), waitingKey: null, waitingSince: 0, waitTimer: null, failedTargetKeys: new Set(), filledStepKeys: new Set() };
+  const state = { spec: null, index: 0, introAcknowledged: false, target: null, markedTarget: null, skippedStep: null, observer: null, reportedFailures: new Set(), reportedDiagnostics: new Set(), waitingKey: null, waitingSince: 0, waitTimer: null, failedTargetKeys: new Set(), filledStepKeys: new Set() };
   const root = document.createElement("div");
   root.id = "__demoflow_root";
   root.innerHTML = `
@@ -26,6 +26,12 @@
       #__demoflow_empty p { margin: 0 0 13px; color: rgba(255,250,247,.83); font-size: 14px; line-height: 1.45; }
       #__demoflow_empty button { border: 0; padding: 0; color: #fffaf7; background: transparent; cursor: pointer; font: inherit; font-size: 12px; font-weight: 650; }
       #__demoflow_empty button + button { margin-left: 13px; color: rgba(255,250,247,.72); }
+      #__demoflow_intro { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: auto; }
+      #__demoflow_intro_card { width: min(510px, 100%); padding: 30px; color: var(--df-ink); background: var(--df-card); border: 1px solid var(--df-rule); border-radius: 18px; box-shadow: 0 26px 80px var(--df-shadow); }
+      #__demoflow_intro_card span { display: block; margin-bottom: 12px; color: var(--df-accent); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+      #__demoflow_intro_card h1 { margin: 0 0 12px; font-family: Georgia, "Times New Roman", serif; font-size: 31px; line-height: 1.06; letter-spacing: -.04em; }
+      #__demoflow_intro_card p { margin: 0 0 22px; color: var(--df-muted); font-size: 16px; line-height: 1.5; }
+      #__demoflow_intro_card button { border: 0; border-radius: 8px; padding: 10px 14px; color: #fff; background: var(--df-accent); cursor: pointer; font: inherit; font-weight: 700; }
     </style>
     <div id="__demoflow_dim"></div><div id="__demoflow_halo"></div>
     <aside id="__demoflow_card" role="status"><div id="__demoflow_kicker">Guided walkthrough</div><h2></h2><p></p><div id="__demoflow_controls"><button data-action="restart">Restart</button><button data-action="skip">Skip</button><span id="__demoflow_progress"></span><button data-action="exit">End tour</button></div></aside>`;
@@ -134,6 +140,21 @@
   }
 
   function clearEmpty() { root.querySelector("#__demoflow_empty")?.remove(); }
+  function clearIntro() { root.querySelector("#__demoflow_intro")?.remove(); }
+  function showIntro() {
+    if (root.querySelector("#__demoflow_intro")) return;
+    clearEmpty(); clearTargetMarker(); state.target = null;
+    root.querySelector("#__demoflow_halo").style.display = "none";
+    card.style.display = "none";
+    const intro = document.createElement("div"); intro.id = "__demoflow_intro";
+    const introCard = document.createElement("section"); introCard.id = "__demoflow_intro_card";
+    const kicker = document.createElement("span"); kicker.textContent = "About this demo";
+    const introTitle = document.createElement("h1"); introTitle.textContent = state.spec.intro.title;
+    const introBody = document.createElement("p"); introBody.textContent = state.spec.intro.body;
+    const begin = document.createElement("button"); begin.type = "button"; begin.textContent = "Begin demo";
+    begin.onclick = () => { state.introAcknowledged = true; clearIntro(); render(); };
+    introCard.append(kicker, introTitle, introBody, begin); intro.append(introCard); root.append(intro);
+  }
   function stopWaiting() {
     if (state.waitTimer) clearTimeout(state.waitTimer);
     state.waitTimer = null; state.waitingKey = null; state.waitingSince = 0;
@@ -229,6 +250,7 @@
   function render() {
     clearEmpty();
     if (!state.spec || state.index >= state.spec.steps.length) return exit();
+    if (state.spec.intro && !state.introAcknowledged) return showIntro();
     const step = state.spec.steps[state.index];
     if (step.path && location.pathname !== step.path) { waitForTarget({ ...step, id: `${step.id} (waiting for ${step.path})` }, "missing"); return; }
     const resolved = resolveTarget(step.target);
@@ -243,6 +265,7 @@
   function exit() { stopWaiting(); state.observer?.disconnect(); clearTargetMarker(); root.remove(); }
   function restart() {
     state.index = 0;
+    state.introAcknowledged = false;
     state.target = null;
     state.skippedStep = null;
     state.failedTargetKeys.clear();

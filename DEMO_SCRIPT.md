@@ -27,9 +27,9 @@ Show the compact application map and proposed four-step demo plan. Explain that 
 
 Approve the `dev` script and open the local Demo Mode URL.
 
-“This is the real application, running locally through a loopback proxy. DemoFlow injects a temporary overlay, so it never changes the app source.”
+“This is the real application, running locally through a loopback proxy. The opening card tells a product audience what changed; DemoFlow then injects temporary guidance, so it never changes the app source.”
 
-Click through the four steps. Highlight that each click and form submission is handled by the actual app.
+Dismiss the opening card, then click through the four steps. Highlight that each click and form submission is handled by the actual app.
 
 ## 1:35–1:50 — Show editability
 

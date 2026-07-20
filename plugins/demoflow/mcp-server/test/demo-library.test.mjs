@@ -70,3 +70,20 @@ test("accepts an input-and-submit step", async () => {
   assert.equal(spec.steps[0].advance.minLength, 3);
   assert.deepEqual(spec.steps[0].advance.submitTarget, { role: "button", name: "Save check-in" });
 });
+
+test("accepts a product-facing intro before the walkthrough", async () => {
+  const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-intro-"));
+  const appMap = { workspacePath, ...appMapData, fingerprint: fingerprintAppMap(appMapData) };
+  await writeDemoSpec(workspacePath, {
+    version: 1,
+    id: "graduate-badge",
+    title: "Graduate badge",
+    goal: "Show the badge earned after completing a challenge",
+    startPath: "/community",
+    intro: { title: "What changed", body: "Completing a challenge now earns a Graduate badge, visible in your profile." },
+    steps: [{ id: "join", target: { testId: "join-quit-smoking" }, tooltip: { title: "Join", body: "Join it." }, advance: { type: "click-target" } }],
+  }, appMap);
+
+  const spec = await readDemoSpec(workspacePath, "graduate-badge");
+  assert.equal(spec.intro?.title, "What changed");
+});

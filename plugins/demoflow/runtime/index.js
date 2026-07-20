@@ -21180,12 +21180,17 @@ var AdvanceSchema = external_exports.union([
 var PresentationSchema = external_exports.object({
   theme: external_exports.enum(["presenter", "minimal", "debug"])
 });
+var IntroSchema = external_exports.object({
+  title: external_exports.string().min(1),
+  body: external_exports.string().min(1)
+});
 var DemoSpecSchema = external_exports.object({
   version: external_exports.literal(1),
   id: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   title: external_exports.string().min(1),
   goal: external_exports.string().min(1),
   startPath: external_exports.string().startsWith("/"),
+  intro: IntroSchema.optional(),
   presentation: PresentationSchema.optional(),
   metadata: external_exports.object({
     appFingerprint: external_exports.string().regex(/^[a-f0-9]{64}$/),

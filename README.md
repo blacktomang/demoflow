@@ -4,6 +4,8 @@ Turn a local web application into a live, explainable guided demo with a Codex p
 
 DemoFlow reads a local project to create a versioned `demo.spec.json`, then serves the running app through a loopback-only proxy that injects a temporary walkthrough overlay. The original app remains interactive and its source code is not changed.
 
+Every generated walkthrough can begin with a short, product-facing introduction: what changed or what the audience is about to see, before the first highlighted interaction.
+
 ## Status
 
 Build Week MVP. DemoFlow includes a packaged local MCP runtime, a loopback-only proxy, a live browser overlay, and a Vite/React sample application.
@@ -36,7 +38,7 @@ Start a new Codex task after installation so its DemoFlow skill and MCP tools ar
 5. Open the returned **Demo Mode** localhost URL and click through the real application. The tooltips advance as the real app changes state.
 6. Ask Codex to stop DemoFlow when you are finished.
 
-DemoFlow never uploads project source code to a DemoFlow service, does not require an account or payment, and does not permanently modify application source. It writes only local `.demoflow/` artifacts and injects the temporary overlay through a second loopback-only localhost URL.
+DemoFlow never uploads project source code to a DemoFlow service, does not require an account or payment, and does not permanently modify application source. It writes only local `.demoflow/` artifacts and injects the temporary overlay through a second loopback-only localhost URL. It never stages, commits, or pushes Git changes after generating or repairing a demo.
 
 ### Repeated buttons
 

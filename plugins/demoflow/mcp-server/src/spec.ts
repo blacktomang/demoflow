@@ -23,12 +23,18 @@ const PresentationSchema = z.object({
   theme: z.enum(["presenter", "minimal", "debug"]),
 });
 
+const IntroSchema = z.object({
+  title: z.string().min(1),
+  body: z.string().min(1),
+});
+
 export const DemoSpecSchema = z.object({
   version: z.literal(1),
   id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   title: z.string().min(1),
   goal: z.string().min(1),
   startPath: z.string().startsWith("/"),
+  intro: IntroSchema.optional(),
   presentation: PresentationSchema.optional(),
   metadata: z.object({
     appFingerprint: z.string().regex(/^[a-f0-9]{64}$/),

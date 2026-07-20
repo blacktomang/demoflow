@@ -14,6 +14,7 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 3. If the developer chooses a saved demo, use its `demo.spec.json` directly; do not call `inspect_project`. Offer `demoflow.check_demo_freshness` only when the developer asks to validate it or when a stale-flow warning is needed. A `current` result can run; a `stale` result needs the developer's choice to run anyway or regenerate; an `unknown` result should offer the same choice.
 4. For a new or regenerated demo, call `demoflow.inspect_project` before proposing a flow.
 5. Describe a short linear journey using only targets found in the returned application map.
+   - Include a concise `intro: { title, body }` by default. It appears before the first action and explains the user-facing value or release change in plain language. Omit it only when the developer explicitly asks for no intro.
    - Every target must resolve to one element. Never use a generic repeated role/name such as `Join` alone.
    - Prefer a `testId`. If a repeated button has no test ID, use a role/name target with `withinText` set to the surrounding card's visible challenge title.
    - If the requested journey intentionally uses the first or another ordered repeated control and no reliable card title is available, record `occurrence` (one-based) in that role/name target. This makes the coding agent's selection explicit and lets the overlay attach to that exact DOM-order match.
@@ -33,6 +34,7 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 ## Constraints
 
 - Never modify application source code or install dependencies in the target project to enable Demo Mode.
+- Never stage, commit, or push Git changes after generating or repairing a demo. `.demoflow/` artifacts remain local unless the developer explicitly chooses to version-control them.
 - Never execute a dev script through MCP. Use Codex's terminal tool so its native command-approval UI remains the confirmation surface.
 - Never ask for a separate prose permission to create, reuse, or recreate a local preview. The native approval prompt applies only to the target app command.
 - A dead preview is a terminal state for the current request, not a reason to retry in a loop.

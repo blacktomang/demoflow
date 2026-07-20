@@ -68,7 +68,8 @@ They want a reusable walkthrough, but this release intentionally prioritizes the
 4. Codex examines the codebase and returns a proposed journey: personas, prerequisites, actions, expected outcomes, and any assumptions.
 5. DemoFlow starts the app using a detected or user-approved development command.
 6. DemoFlow serves the app through a local preview URL and injects its temporary overlay into the rendered HTML.
-7. The developer follows the real UI; each tooltip highlights a real element and advances after the expected interaction or UI state.
+7. Before the first action, DemoFlow presents a brief product-facing introduction explaining what this demo will show.
+8. The developer follows the real UI; each tooltip highlights a real element and advances after the expected interaction or UI state.
 8. DemoFlow writes the editable demo specification to the repository and Codex flags any assumption or unresolved selector.
 
 ### Example prompt
@@ -103,10 +104,12 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 - Serve the app at a local proxy URL and inject the DemoFlow client overlay at runtime.
 - Highlight elements using accessible selectors, labels, or existing test IDs.
 - Present the walkthrough with a product-facing default theme, plus quiet and debug variants chosen in the saved demo spec.
+- Present an optional, product-facing intro card before the first action, summarizing the release or journey for the audience.
 - Advance based on user interaction or observable UI state.
 - Treat filling a form and clicking its real submit button as one walkthrough action; advance only after the meaningful value and actual submit click.
 - Wait briefly for the next step to mount after a real interaction before treating a React/Next.js conditional screen as a broken target.
 - Write a portable `demo.spec.json` file.
+- Never stage, commit, or push Git changes while generating, repairing, or running a demo.
 - Provide overlay controls to skip, restart, or edit tooltip text during the local session.
 - Report selector and state-resolution failures back to Codex.
 
@@ -128,6 +131,10 @@ All artifacts are written under `.demoflow/<demo-id>/` by default.
   "title": "New user onboarding",
   "goal": "Show a user creating a workspace and inviting a teammate",
   "baseUrl": "http://127.0.0.1:3000",
+  "intro": {
+    "title": "What changed",
+    "body": "This release makes project setup faster by keeping workspaces, projects, and invitations in one guided flow."
+  },
   "steps": [
     {
       "id": "create-workspace",

@@ -76,6 +76,7 @@ type DemoSpec = {
   title: string;
   goal: string;
   startPath: string;
+  intro?: { title: string; body: string };
   presentation?: { theme: "presenter" | "minimal" | "debug" };
   steps: DemoStep[];
 };
@@ -133,6 +134,8 @@ The proxy must not modify upstream JavaScript bundles, API responses, static ass
 
 ## 7. Overlay behavior
 
+When present, `intro` is rendered before step one as a centered, product-facing card with a **Begin demo** action. It gives the audience release context (for example, “What changed”) without modifying or blocking the host app after it is dismissed. Restart returns to this intro before replaying the walkthrough.
+
 The overlay has three layers:
 
 1. A dimmer with a transparent cutout around the active target.
@@ -183,7 +186,7 @@ The included Vite sample app must pass these manual checks:
 6. Navigating to another route preserves the overlay and displays the next step.
 7. Exit removes the overlay without stopping or altering the source app.
 8. Stopping DemoFlow stops only the proxy; Codex owns the app process.
-9. `git diff` after a run contains only ignored `.demoflow/` artifacts.
+9. `git diff` after a run contains only ignored `.demoflow/` artifacts; DemoFlow never stages, commits, or pushes Git changes.
 
 ## 11. Deferred work
 

@@ -70,6 +70,7 @@
 - [x] Resolve targets in priority order: test ID, role/name, label, CSS.
 - [x] Draw a pointer-transparent dimmer and target highlight.
 - [x] Render a tooltip with title, explanation, step count, Restart, Skip, and Exit controls.
+- [x] Render an optional product-facing intro card before the first walkthrough action, and show it again on Restart.
 - [x] Listen for route changes, clicks, submit events, and DOM mutations.
 - [x] Advance only when the configured condition is met.
 - [x] Show a non-blocking missing-target state and report it to the local status endpoint.
@@ -86,6 +87,7 @@
 - [x] Confirm no application source files are modified by a run.
 - [x] Confirm all servers bind to `127.0.0.1`.
 - [x] Confirm the overlay does not consume clicks intended for the app.
+- [x] Confirm demo generation and repair never stage, commit, or push Git changes.
 
 **Done when:** every acceptance test in [SPEC.md](SPEC.md) passes.
 
