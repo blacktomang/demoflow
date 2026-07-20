@@ -28,6 +28,13 @@ const IntroSchema = z.object({
   body: z.string().min(1),
 });
 
+const ProvenanceSchema = z.object({
+  baseBranch: z.string().min(1),
+  baseCommit: z.string().regex(/^[a-f0-9]{40}$/),
+  currentBranch: z.string().min(1),
+  currentCommit: z.string().regex(/^[a-f0-9]{40}$/),
+});
+
 export const DemoSpecSchema = z.object({
   version: z.literal(1),
   id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
@@ -35,6 +42,7 @@ export const DemoSpecSchema = z.object({
   goal: z.string().min(1),
   startPath: z.string().startsWith("/"),
   intro: IntroSchema.optional(),
+  provenance: ProvenanceSchema.optional(),
   presentation: PresentationSchema.optional(),
   metadata: z.object({
     appFingerprint: z.string().regex(/^[a-f0-9]{64}$/),

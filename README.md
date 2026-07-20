@@ -60,6 +60,10 @@ DemoFlow validates that the target app is reachable before it creates a preview.
 
 DemoFlow supports React and Next.js UI that mounts conditionally after an action. When the next target is not in the DOM yet, the overlay waits and retries for up to five seconds before it reports a failed step.
 
+### Demo this branch
+
+In a locally checked-out Git branch, ask: `Use DemoFlow to demo what changed in this branch.` DemoFlow compares the checked-out `HEAD` to the detected base branch (`origin/HEAD`, then `main`, `master`, or `develop`), returns the changed files and commits to Codex, and lets the developer choose a proposed flow or type their own focus. It never fetches a pull request, changes branches, or contacts GitHub. The saved spec records the compared branches and commit SHAs as provenance.
+
 For a text or select field that takes effect immediately, Codex saves `advance: { "type": "input-target", "minLength": 1 }`. When a field must be filled and then submitted, it saves `input-and-click` with the real submit-button target, so the whole form action advances together. Older specs that use `manual` remain manual until regenerated or edited.
 
 ### Repairing a browser failure

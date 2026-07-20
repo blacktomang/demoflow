@@ -5,9 +5,11 @@ import { inspectProject, type AppMap } from "./inspector.js";
 import { writeDemoSpec, DemoSpecSchema, listDemoSpecs, readDemoSpec } from "./spec.js";
 import { prepareAppStart } from "./start-command.js";
 import { createPreview, getPreview, stopPreview } from "./proxy.js";
+import { inspectBranchChanges } from "./branch.js";
 
 const server = new McpServer({ name: "demoflow", version: "0.1.0" });
 const lastInspectedAppMaps = new Map<string, AppMap>();
+const lastBranchComparisons = new Map<string, Awaited<ReturnType<typeof inspectBranchChanges>>>();
 
 async function inspectAndRemember(workspacePath: string): Promise<AppMap> {
   const appMap = await inspectProject(workspacePath);
@@ -41,6 +43,17 @@ server.tool(
   async ({ workspacePath }) => {
     const appMap = await inspectAndRemember(workspacePath);
     return { content: [{ type: "text", text: JSON.stringify(appMap, null, 2) }] };
+  },
+);
+
+server.tool(
+  "inspect_branch_changes",
+  "Compare the checked-out Git branch with its detected or developer-specified base branch. Use this before proposing a PR-aware demo flow; it only reads local Git metadata and diffs.",
+  { workspacePath: z.string().describe("Absolute path to the local project workspace"), baseBranch: z.string().optional().describe("Optional local base branch override, such as main, master, develop, or origin/main") },
+  async ({ workspacePath, baseBranch }) => {
+    const comparison = await inspectBranchChanges(workspacePath, baseBranch);
+    lastBranchComparisons.set(workspacePath, comparison);
+    return { content: [{ type: "text", text: JSON.stringify(comparison, null, 2) }] };
   },
 );
 
@@ -105,7 +118,17 @@ server.tool(
   "Validate and save a DemoFlow demo spec under .demoflow/<id>/demo.spec.json.",
   { workspacePath: z.string(), spec: DemoSpecSchema },
   async ({ workspacePath, spec }) => {
-    const path = await writeDemoSpec(workspacePath, spec, lastInspectedAppMaps.get(workspacePath) ?? await inspectAndRemember(workspacePath));
+    const branch = lastBranchComparisons.get(workspacePath);
+    const specWithProvenance = spec.provenance || !branch ? spec : {
+      ...spec,
+      provenance: {
+        baseBranch: branch.baseBranch,
+        baseCommit: branch.baseCommit,
+        currentBranch: branch.currentBranch,
+        currentCommit: branch.currentCommit,
+      },
+    };
+    const path = await writeDemoSpec(workspacePath, specWithProvenance, lastInspectedAppMaps.get(workspacePath) ?? await inspectAndRemember(workspacePath));
     return { content: [{ type: "text", text: `Saved DemoFlow spec: ${path}` }] };
   },
 );

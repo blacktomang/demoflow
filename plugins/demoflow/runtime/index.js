@@ -21184,6 +21184,12 @@ var IntroSchema = external_exports.object({
   title: external_exports.string().min(1),
   body: external_exports.string().min(1)
 });
+var ProvenanceSchema = external_exports.object({
+  baseBranch: external_exports.string().min(1),
+  baseCommit: external_exports.string().regex(/^[a-f0-9]{40}$/),
+  currentBranch: external_exports.string().min(1),
+  currentCommit: external_exports.string().regex(/^[a-f0-9]{40}$/)
+});
 var DemoSpecSchema = external_exports.object({
   version: external_exports.literal(1),
   id: external_exports.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
@@ -21191,6 +21197,7 @@ var DemoSpecSchema = external_exports.object({
   goal: external_exports.string().min(1),
   startPath: external_exports.string().startsWith("/"),
   intro: IntroSchema.optional(),
+  provenance: ProvenanceSchema.optional(),
   presentation: PresentationSchema.optional(),
   metadata: external_exports.object({
     appFingerprint: external_exports.string().regex(/^[a-f0-9]{64}$/),
@@ -21411,9 +21418,82 @@ async function stopPreview(id) {
   await new Promise((resolve, reject) => preview.server.close((error2) => error2 ? reject(error2) : resolve()));
 }
 
+// src/branch.ts
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+var execFileAsync = promisify(execFile);
+var MAX_CHANGED_FILES = 100;
+var SAFE_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+async function git(workspacePath, args) {
+  const { stdout } = await execFileAsync("git", ["-C", workspacePath, ...args], { maxBuffer: 1024 * 1024 });
+  return stdout.trim();
+}
+function assertSafeRef(ref) {
+  if (!SAFE_REF.test(ref) || ref.startsWith("-")) throw new Error("Base branch contains unsupported characters");
+}
+async function refExists(workspacePath, ref) {
+  try {
+    await git(workspacePath, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function detectBaseBranch(workspacePath) {
+  try {
+    const remoteHead = await git(workspacePath, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]);
+    if (remoteHead && await refExists(workspacePath, remoteHead)) return remoteHead;
+  } catch {
+  }
+  for (const candidate of ["main", "master", "develop", "origin/main", "origin/master", "origin/develop"]) {
+    if (await refExists(workspacePath, candidate)) return candidate;
+  }
+  throw new Error("Could not detect a base branch. Pass baseBranch explicitly (for example main, master, or develop).");
+}
+function parseChangedFiles(output) {
+  if (!output) return [];
+  const changes = [];
+  for (const line of output.split("\n").slice(0, MAX_CHANGED_FILES)) {
+    const [status, firstPath, secondPath] = line.split("	");
+    if (!status || !firstPath) continue;
+    if (status.startsWith("R") || status.startsWith("C")) {
+      changes.push({ status: "renamed", previousPath: firstPath, path: secondPath || firstPath });
+      continue;
+    }
+    const mapped = status === "A" ? "added" : status === "D" ? "deleted" : "modified";
+    changes.push({ status: mapped, path: firstPath });
+  }
+  return changes;
+}
+async function inspectBranchChanges(workspacePath, requestedBaseBranch) {
+  const repositoryRoot = await git(workspacePath, ["rev-parse", "--show-toplevel"]).catch(() => {
+    throw new Error("DemoFlow PR-aware mode requires a local Git repository.");
+  });
+  const baseBranch = requestedBaseBranch ?? await detectBaseBranch(repositoryRoot);
+  assertSafeRef(baseBranch);
+  if (!await refExists(repositoryRoot, baseBranch)) throw new Error(`Base branch "${baseBranch}" does not exist locally.`);
+  const [baseCommit, currentCommit, currentBranch, rawChangedFiles] = await Promise.all([
+    git(repositoryRoot, ["rev-parse", `${baseBranch}^{commit}`]),
+    git(repositoryRoot, ["rev-parse", "HEAD"]),
+    git(repositoryRoot, ["branch", "--show-current"]),
+    git(repositoryRoot, ["diff", "--name-status", "--find-renames", `${baseBranch}...HEAD`])
+  ]);
+  const allChanges = rawChangedFiles ? rawChangedFiles.split("\n") : [];
+  return {
+    repositoryRoot,
+    baseBranch,
+    baseCommit,
+    currentBranch: currentBranch || "HEAD (detached)",
+    currentCommit,
+    changedFiles: parseChangedFiles(rawChangedFiles),
+    truncated: allChanges.length > MAX_CHANGED_FILES
+  };
+}
+
 // src/index.ts
 var server = new McpServer({ name: "demoflow", version: "0.1.0" });
 var lastInspectedAppMaps = /* @__PURE__ */ new Map();
+var lastBranchComparisons = /* @__PURE__ */ new Map();
 async function inspectAndRemember(workspacePath) {
   const appMap = await inspectProject(workspacePath);
   lastInspectedAppMaps.set(workspacePath, appMap);
@@ -21443,6 +21523,16 @@ server.tool(
   async ({ workspacePath }) => {
     const appMap = await inspectAndRemember(workspacePath);
     return { content: [{ type: "text", text: JSON.stringify(appMap, null, 2) }] };
+  }
+);
+server.tool(
+  "inspect_branch_changes",
+  "Compare the checked-out Git branch with its detected or developer-specified base branch. Use this before proposing a PR-aware demo flow; it only reads local Git metadata and diffs.",
+  { workspacePath: external_exports.string().describe("Absolute path to the local project workspace"), baseBranch: external_exports.string().optional().describe("Optional local base branch override, such as main, master, develop, or origin/main") },
+  async ({ workspacePath, baseBranch }) => {
+    const comparison = await inspectBranchChanges(workspacePath, baseBranch);
+    lastBranchComparisons.set(workspacePath, comparison);
+    return { content: [{ type: "text", text: JSON.stringify(comparison, null, 2) }] };
   }
 );
 server.tool(
@@ -21502,7 +21592,17 @@ server.tool(
   "Validate and save a DemoFlow demo spec under .demoflow/<id>/demo.spec.json.",
   { workspacePath: external_exports.string(), spec: DemoSpecSchema },
   async ({ workspacePath, spec }) => {
-    const path5 = await writeDemoSpec(workspacePath, spec, lastInspectedAppMaps.get(workspacePath) ?? await inspectAndRemember(workspacePath));
+    const branch = lastBranchComparisons.get(workspacePath);
+    const specWithProvenance = spec.provenance || !branch ? spec : {
+      ...spec,
+      provenance: {
+        baseBranch: branch.baseBranch,
+        baseCommit: branch.baseCommit,
+        currentBranch: branch.currentBranch,
+        currentCommit: branch.currentCommit
+      }
+    };
+    const path5 = await writeDemoSpec(workspacePath, specWithProvenance, lastInspectedAppMaps.get(workspacePath) ?? await inspectAndRemember(workspacePath));
     return { content: [{ type: "text", text: `Saved DemoFlow spec: ${path5}` }] };
   }
 );

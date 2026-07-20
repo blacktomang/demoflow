@@ -23,6 +23,8 @@ create a project, and invite a teammate.
 
 Show the compact application map and proposed four-step demo plan. Explain that DemoFlow uses local project routes, labels, and test IDs, rather than sending a stream of screenshots or DOM dumps to the model.
 
+Optional branch-aware variation: ask “Demo what changed in this branch.” Show the local base branch, changed files, and a proposed release journey before choosing the flow to present.
+
 ## 1:05–1:35 — Show Demo Mode
 
 Approve the `dev` script and open the local Demo Mode URL.

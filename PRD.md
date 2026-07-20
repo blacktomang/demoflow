@@ -97,6 +97,7 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 - Keep the model plan structured and reviewable before actions run.
 - Call the local MCP tools rather than relying on prose-only instructions.
 - Return a validated app-start command to Codex; Codex executes it through its native command-approval UI so the developer can approve, deny, or explain an adjustment.
+- When asked to demo the checked-out branch, compare local `HEAD` with a detected or developer-specified base branch, identify changed files, and let the developer choose a proposed journey or provide their own focus. This is read-only local Git analysis; it never fetches PRs, changes branches, or contacts GitHub.
 
 ### Required local runtime behavior
 
@@ -109,6 +110,7 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 - Treat filling a form and clicking its real submit button as one walkthrough action; advance only after the meaningful value and actual submit click.
 - Wait briefly for the next step to mount after a real interaction before treating a React/Next.js conditional screen as a broken target.
 - Write a portable `demo.spec.json` file.
+- Save local branch and commit provenance in a branch-aware demo spec so a later viewer knows which change set it describes.
 - Never stage, commit, or push Git changes while generating, repairing, or running a demo.
 - Provide overlay controls to skip, restart, or edit tooltip text during the local session.
 - Report selector and state-resolution failures back to Codex.

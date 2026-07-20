@@ -81,9 +81,11 @@ test("accepts a product-facing intro before the walkthrough", async () => {
     goal: "Show the badge earned after completing a challenge",
     startPath: "/community",
     intro: { title: "What changed", body: "Completing a challenge now earns a Graduate badge, visible in your profile." },
+    provenance: { baseBranch: "main", baseCommit: "a".repeat(40), currentBranch: "feature/graduate-badge", currentCommit: "b".repeat(40) },
     steps: [{ id: "join", target: { testId: "join-quit-smoking" }, tooltip: { title: "Join", body: "Join it." }, advance: { type: "click-target" } }],
   }, appMap);
 
   const spec = await readDemoSpec(workspacePath, "graduate-badge");
   assert.equal(spec.intro?.title, "What changed");
+  assert.equal(spec.provenance?.baseBranch, "main");
 });

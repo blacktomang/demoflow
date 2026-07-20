@@ -44,6 +44,16 @@
 
 **Done when:** a valid spec is saved and an invalid spec returns a clear error.
 
+### 4.1 Branch-aware demo generation
+
+- [x] Detect a local base branch from `origin/HEAD`, then `main`, `master`, or `develop`, with a developer override.
+- [x] Compare `<base>...HEAD` locally and return bounded changed-file and commit metadata.
+- [x] Save branch/commit provenance when a spec follows branch inspection.
+- [x] Instruct Codex to propose branch-based flows while allowing the developer to provide their own focus.
+- [x] Keep branch analysis read-only: no fetch, checkout, staging, commit, or push.
+
+**Done when:** a developer can ask to demo the checked-out branch and receive a reviewable, provenance-stamped local demo spec.
+
 ### 5. Native command approval handoff
 
 - [x] Replace `demoflow.start_app` with `demoflow.prepare_app_start`; it validates and returns a declared script without executing it.

@@ -13,6 +13,9 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 2. Call `demoflow.list_demos` first. This lists saved demos without reading application source code.
 3. If the developer chooses a saved demo, use its `demo.spec.json` directly; do not call `inspect_project`. Offer `demoflow.check_demo_freshness` only when the developer asks to validate it or when a stale-flow warning is needed. A `current` result can run; a `stale` result needs the developer's choice to run anyway or regenerate; an `unknown` result should offer the same choice.
 4. For a new or regenerated demo, call `demoflow.inspect_project` before proposing a flow.
+   - When the developer asks to demo the checked-out branch, PR changes, or what changed, call `demoflow.inspect_branch_changes` first. It uses only local Git history and returns the detected base branch, commits, and changed paths.
+   - Explain the detected comparison and why each proposed journey is relevant. Offer the developer the proposed journeys **and** a free-form option to state the focus they want. Do not invent a user-facing flow from refactor-only changes; ask what the demo should prove instead.
+   - After a branch inspection, let `write_spec` retain the returned branch and commit provenance. Never fetch a PR, change branches, stage, commit, or push.
 5. Describe a short linear journey using only targets found in the returned application map.
    - Include a concise `intro: { title, body }` by default. It appears before the first action and explains the user-facing value or release change in plain language. Omit it only when the developer explicitly asks for no intro.
    - Every target must resolve to one element. Never use a generic repeated role/name such as `Join` alone.

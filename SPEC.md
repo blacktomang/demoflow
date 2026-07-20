@@ -55,6 +55,7 @@ The plugin skill must produce a reviewable `demo.spec.json` before opening the p
 | `demoflow.list_demos` | workspace path | saved demo titles, goals, steps, and saved fingerprints without a source scan |
 | `demoflow.check_demo_freshness` | workspace path + demo ID | `current`, `stale`, or `unknown` after an on-demand compact scan |
 | `demoflow.inspect_project` | workspace path | framework, scripts, route/component/test-id summary |
+| `demoflow.inspect_branch_changes` | workspace path + optional base branch | local base/current branches, commit SHAs, and changed-file summary for a branch-aware demo |
 | `demoflow.write_spec` | demo ID + validated spec | saved path, demo-local app-map snapshot, and fingerprint |
 | `demoflow.prepare_app_start` | declared package script | exact command, working directory, and likely local base URL; no process is started |
 | `demoflow.create_preview` | base URL + spec path | proxy preview URL |
@@ -77,6 +78,7 @@ type DemoSpec = {
   goal: string;
   startPath: string;
   intro?: { title: string; body: string };
+  provenance?: { baseBranch: string; baseCommit: string; currentBranch: string; currentCommit: string };
   presentation?: { theme: "presenter" | "minimal" | "debug" };
   steps: DemoStep[];
 };
@@ -163,6 +165,10 @@ The first implementation uses a deterministic scanner before asking Codex to wri
 - list existing Playwright/Cypress test names without executing them
 
 The scanner writes a compact `.demoflow/app-map.json`. When a demo is saved, DemoFlow also writes a shareable snapshot at `.demoflow/<demo-id>/app-map.json` and stores its SHA-256 fingerprint in the demo spec. The demo-local snapshot excludes machine-specific workspace paths. Codex receives this map and selected source snippets, not a full browser DOM or continuous visual stream. Opening a saved demo does not rescan source; a freshness check is explicit and returns only `current`, `stale`, or `unknown` to Codex.
+
+### Branch-aware inspection
+
+When the developer asks to demo the checked-out branch, `inspect_branch_changes` reads only the local Git repository. It selects `origin/HEAD` when available, otherwise tries `main`, `master`, then `develop`; the developer can supply an explicit base branch. It returns the merge-base comparison `base...HEAD`, current/base commit SHAs, and up to 100 changed paths (including rename information). Codex uses this evidence plus the compact app map to propose user-facing journeys, but must offer the developer a choice or free-form focus before writing the spec. DemoFlow never fetches a PR, switches branches, stages, commits, or pushes.
 
 ## 9. Security and privacy
 
