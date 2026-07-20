@@ -130,7 +130,7 @@ The proxy owns these reserved paths:
 /__demoflow/status
 ```
 
-All other paths, methods, headers, cookies, query parameters, and response status codes are forwarded to the upstream app. WebSocket forwarding is a stretch requirement; the MVP sample app must work without it.
+All other paths, methods, cookies, query parameters, and response status codes are forwarded to the upstream app. Response headers are preserved except hop-by-hop headers and stale `content-encoding`/`content-length` metadata, because the local fetch client decodes compressed upstream bodies before forwarding them. WebSocket forwarding is a stretch requirement; the MVP sample app must work without it.
 
 The proxy must not modify upstream JavaScript bundles, API responses, static assets, or project files.
 

@@ -21370,14 +21370,12 @@ function injectedHtml(html) {
   const tag = '<script>window.__DEMOFLOW_SPEC_URL__="/__demoflow/spec.json";</script><script src="/__demoflow/overlay.js" defer></script>';
   return html.includes("</head>") ? html.replace("</head>", `${tag}</head>`) : `${tag}${html}`;
 }
-function safeHeaders(headers, modified = false) {
+function safeHeaders(headers) {
   const output = new Headers(headers);
   output.delete("connection");
   output.delete("transfer-encoding");
-  if (modified) {
-    output.delete("content-length");
-    output.delete("content-encoding");
-  }
+  output.delete("content-length");
+  output.delete("content-encoding");
   return output;
 }
 async function serveReserved(preview, request, response) {
@@ -21439,7 +21437,7 @@ async function forward(preview, request, response) {
   const contentType = upstreamResponse.headers.get("content-type") ?? "";
   if (contentType.includes("text/html")) {
     const body = injectedHtml(await upstreamResponse.text());
-    response.writeHead(upstreamResponse.status, Object.fromEntries(safeHeaders(upstreamResponse.headers, true)));
+    response.writeHead(upstreamResponse.status, Object.fromEntries(safeHeaders(upstreamResponse.headers)));
     response.end(body);
     return;
   }

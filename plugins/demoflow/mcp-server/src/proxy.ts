@@ -40,11 +40,14 @@ function injectedHtml(html: string): string {
   return html.includes("</head>") ? html.replace("</head>", `${tag}</head>`) : `${tag}${html}`;
 }
 
-function safeHeaders(headers: Headers, modified = false): Headers {
+function safeHeaders(headers: Headers): Headers {
   const output = new Headers(headers);
   output.delete("connection");
   output.delete("transfer-encoding");
-  if (modified) { output.delete("content-length"); output.delete("content-encoding"); }
+  // Node fetch transparently decompresses upstream bodies. Never forward stale
+  // compression or length metadata with the decoded bytes (notably Next CSS/JS).
+  output.delete("content-length");
+  output.delete("content-encoding");
   return output;
 }
 
@@ -108,7 +111,7 @@ async function forward(preview: Preview, request: IncomingMessage, response: Ser
   const contentType = upstreamResponse.headers.get("content-type") ?? "";
   if (contentType.includes("text/html")) {
     const body = injectedHtml(await upstreamResponse.text());
-    response.writeHead(upstreamResponse.status, Object.fromEntries(safeHeaders(upstreamResponse.headers, true)));
+    response.writeHead(upstreamResponse.status, Object.fromEntries(safeHeaders(upstreamResponse.headers)));
     response.end(body);
     return;
   }

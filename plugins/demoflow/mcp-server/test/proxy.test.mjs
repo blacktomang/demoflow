@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { createServer } from "node:http";
+import { gzipSync } from "node:zlib";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -20,6 +21,11 @@ before(async () => {
   }));
   upstream = createServer((request, response) => {
     if (request.url === "/asset.js") return response.end("window.sampleAsset=true");
+    if (request.url === "/style.css") {
+      const body = gzipSync(".upstream-style { color: rebeccapurple; }");
+      response.writeHead(200, { "content-type": "text/css", "content-encoding": "gzip", "content-length": body.length });
+      return response.end(body);
+    }
     response.writeHead(200, { "content-type": "text/html" });
     response.end("<html><head><title>Upstream</title></head><body><button data-testid=\"cta\">Go</button><script src=\"/asset.js\"></script></body></html>");
   });
@@ -48,6 +54,14 @@ test("serves the spec and overlay from reserved local paths", async () => {
   const overlay = await (await fetch(`${preview.url}/__demoflow/overlay.js`)).text();
   assert.equal(spec.steps[0].id, "cta");
   assert.match(overlay, /__demoflow_root/);
+});
+
+test("forwards decoded compressed stylesheets without stale compression headers", async () => {
+  const response = await fetch(`${preview.url}/style.css`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-encoding"), null);
+  assert.equal(response.headers.get("content-length"), null);
+  assert.equal(await response.text(), ".upstream-style { color: rebeccapurple; }");
 });
 
 test("records a structured browser failure without forwarding the status request to the app", async () => {
