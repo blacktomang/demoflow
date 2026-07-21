@@ -34,6 +34,7 @@
 - [x] Parse bounded React/Next JSX render guards and carry parent-component prerequisites into child controls.
 - [x] Exclude controls with known positive state prerequisites from clean-start demo suggestions and report them separately.
 - [x] Rank source-discovered product starts and require a developer choice when a request leaves more than one viable journey.
+- [x] Present and source-review a human-readable storyboard before writing a spec; keep every real click as a distinct planned action.
 - [x] Derive Next.js App Router paths from `app/**/page.*`.
 - [x] Write a compact `.demoflow/app-map.json`.
 - [x] Keep output bounded; do not send raw source trees or browser DOM streams to the model.
@@ -47,6 +48,7 @@
 - [x] Support `click-target`, `path-is`, `element-visible`, and `manual` advance conditions.
 - [x] Validate demo IDs and output paths to prevent traversal outside `.demoflow/`.
 - [x] Implement `demoflow.write_spec`.
+- [x] Implement `demoflow.review_storyboard` with source evidence, prerequisites, ambiguity checks, and confidence reporting.
 - [x] Create a checked-in onboarding fixture spec for the sample app.
 
 **Done when:** a valid spec is saved and an invalid spec returns a clear error.

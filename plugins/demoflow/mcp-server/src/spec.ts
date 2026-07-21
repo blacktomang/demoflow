@@ -3,7 +3,7 @@ import path from "node:path";
 import { z } from "zod";
 import type { AppMap } from "./inspector.js";
 
-const TargetSchema = z.union([
+export const TargetSchema = z.union([
   z.object({ testId: z.string().min(1) }),
   z.object({ role: z.string().min(1), name: z.string().min(1), withinText: z.string().min(1).optional(), occurrence: z.number().int().min(1).optional() }),
   z.object({ label: z.string().min(1) }),
@@ -64,7 +64,7 @@ export const DemoSpecSchema = z.object({
     target: TargetSchema,
     tooltip: z.object({ title: z.string().min(1), body: z.string().min(1) }),
     advance: AdvanceSchema,
-  })).min(1).max(5),
+  })).min(1).max(8),
 });
 
 export type DemoSpec = z.infer<typeof DemoSpecSchema>;

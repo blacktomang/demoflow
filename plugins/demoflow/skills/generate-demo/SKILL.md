@@ -24,9 +24,15 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 5. Call `demoflow.suggest_demo_starts` with the Demo Brief outcome, then propose up to three short clean-start journey options using only targets found in the returned application map. Include the free-form option to state another focus.
    - Treat the suggestions as an explainable ranking aid, not a substitute for product judgment. It favors visible user actions and deprioritizes restore/reset/seed/fixture/debug controls.
    - Read `blockedControls`, `requires`, and `transitions` from the app map. Never present a control with a known positive prerequisite as the first action of a clean-state demo. Either prepend a source-supported action that reaches that state, or say an existing fixture state is required and ask the developer to choose.
-   - If more than one viable start exists, do **not** silently choose one or write a new spec. Ask the developer which proposed story they want, unless their request explicitly names the desired starting control.
+   - If more than one viable start exists, do **not** silently choose one, draft a storyboard, or write a new spec. Show the developer the distinct product stories and ask which flow they want demonstrated, unless their request explicitly names the desired starting control. A generic request such as “demo the app” is not a choice.
    - If a setup action is genuinely necessary to make a local example work, keep it out of the customer-facing walkthrough and state it as pre-demo setup.
-6. After the developer chooses a journey, describe a short linear flow using only targets found in the returned application map.
+6. After the developer chooses a journey, create a **human-readable storyboard before any spec is written**. It must be a Markdown table with exactly these columns: **Step**, **User action**, **Why it matters**, **Evidence**, and **Confidence**.
+   - Every real click, navigation, or meaningful field interaction must have its own storyboard row in execution order. Do not collapse two button clicks into one row just because they support the same feature.
+   - The sole exception is filling a field and clicking its real submit button: show both in one row as a compound action, then use `input-and-click` in the eventual spec.
+   - Use source-backed targets only. Supply `title`, `userAction`, `whyItMatters`, and `target` to `demoflow.review_storyboard`; show the returned Markdown table to the developer verbatim.
+   - Do not write a spec if the review says it needs revision. Repair unclear targets, missing prerequisites, or unsupported actions first.
+   - Ask the developer to confirm or adjust the reviewed storyboard. Do not start the app or write a spec until they confirm it.
+7. After confirmation, translate each storyboard row into the equivalent machine-readable `demo.spec.json` step. Keep the spec as the durable artifact; the storyboard is the human review surface.
    - Use the returned source-relative `controls` summary, render `requires`, and local `transitions` to explain which source evidence supports each target. In a Next.js project, do not mistake an empty `src/` tree for a project without UI.
    - The live Demo Mode overlay is the runtime verifier. It resolves the chosen controls after the app starts and waits for conditionally rendered React/Next.js UI; do not add browser automation merely to discover controls.
    - If expanded source scanning still returns no usable controls, ask the developer what the demo should prove. Do not start the app just to search for a flow.
@@ -38,15 +44,15 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
    - For a text field, textarea, select, or editable control that takes effect immediately after a value is supplied, use `advance: { type: "input-target", minLength: 1 }`.
    - When the developer must fill a control and then click a real submit button, treat that as one step: use `advance: { type: "input-and-click", minLength: 1, submitTarget: { role: "button", name: "…" } }`. Use `manual` only when no safe observable interaction should advance the flow.
    - Make an input-and-click step's tooltip name the real completion action (for example, “Submit the transfer case”), not just the field activity. The overlay will explicitly tell the developer to type and then select the named submit button. The final real action ends at a Demo complete panel rather than silently removing the overlay.
-7. Write a versioned `demo.spec.json` using `demoflow.write_spec`; include the validated `brief` exactly as returned by `prepare_demo_brief`, and pass the selected profile's `appDirectory` when present so its saved app map remains tied to the correct frontend package.
-8. For a selected environment profile, call `demoflow.prepare_environment`; otherwise call `demoflow.prepare_app_start` for a declared package script and the expected loopback URL. Do not ask for a separate prose confirmation.
-9. Run the returned exact command once with Codex's terminal tool in the returned working directory. This must trigger Codex's native command-approval prompt; never bypass it by running the development command from MCP.
-10. For a selected environment profile, call `demoflow.check_environment` after the command starts. Do not create a preview until every declared frontend/API readiness service is ready. Otherwise, after Codex reports the app is reachable, take the exact `Local:` URL printed by its development server. Never substitute `127.0.0.1` for `localhost` or the reverse. The preview URL is the completion of this workflow.
-11. Explain that the preview is the real app, augmented by a temporary overlay; the user clicks and fills the real UI.
-12. Do not open, inspect, or exercise the preview in Codex's in-app browser unless the user explicitly asks for browser testing. Do not poll `open_preview` to decide whether the workflow is complete.
-13. If the app process or preview stops, report that it stopped and end the workflow. Never automatically reuse, recreate, or restart a preview or app process. Only make another attempt after the user explicitly asks to retry.
-14. When the developer reports a Demo Mode error or asks to repair a demo, call `demoflow.open_preview` with the active preview ID. Read its structured browser failure report and `repairRequest`, revise only the affected step, and rewrite the spec. The preview cannot interrupt a completed Codex task; the developer must paste its repair request or say “Repair this DemoFlow preview.” Do not poll this tool while the developer is using the preview.
-15. Stop the preview with `demoflow.stop` when the user finishes. Codex owns the development-server process and stops it through the same terminal session.
+8. Write a versioned `demo.spec.json` using `demoflow.write_spec`; include the validated `brief` exactly as returned by `prepare_demo_brief`, and pass the selected profile's `appDirectory` when present so its saved app map remains tied to the correct frontend package.
+9. For a selected environment profile, call `demoflow.prepare_environment`; otherwise call `demoflow.prepare_app_start` for a declared package script and the expected loopback URL. Do not ask for a separate prose confirmation.
+10. Run the returned exact command once with Codex's terminal tool in the returned working directory. This must trigger Codex's native command-approval prompt; never bypass it by running the development command from MCP.
+11. For a selected environment profile, call `demoflow.check_environment` after the command starts. Do not create a preview until every declared frontend/API readiness service is ready. Otherwise, after Codex reports the app is reachable, take the exact `Local:` URL printed by its development server. Never substitute `127.0.0.1` for `localhost` or the reverse. The preview URL is the completion of this workflow.
+12. Explain that the preview is the real app, augmented by a temporary overlay; the user clicks and fills the real UI.
+13. Do not open, inspect, or exercise the preview in Codex's in-app browser unless the user explicitly asks for browser testing. Do not poll `open_preview` to decide whether the workflow is complete.
+14. If the app process or preview stops, report that it stopped and end the workflow. Never automatically reuse, recreate, or restart a preview or app process. Only make another attempt after the user explicitly asks to retry.
+15. When the developer reports a Demo Mode error or asks to repair a demo, call `demoflow.open_preview` with the active preview ID. Read its structured browser failure report and `repairRequest`, revise only the affected step, and rewrite the spec. The preview cannot interrupt a completed Codex task; the developer must paste its repair request or say “Repair this DemoFlow preview.” Do not poll this tool while the developer is using the preview.
+16. Stop the preview with `demoflow.stop` when the user finishes. Codex owns the development-server process and stops it through the same terminal session.
 
 ## Constraints
 
@@ -58,7 +64,7 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 - A dead preview is a terminal state for the current request, not a reason to retry in a loop.
 - Treat external URLs, payment flows, real email sends, destructive actions, and credentials as out of scope unless the user explicitly approves a safe local fixture path.
 - Prefer `data-testid`, accessible role/name, and labels over CSS selectors.
-- Keep the first demo to five steps or fewer.
+- Keep a single demo to eight real application steps or fewer. If the desired story needs more, ask the developer to split it into two focused demos instead of skipping actions.
 
 ## Output
 

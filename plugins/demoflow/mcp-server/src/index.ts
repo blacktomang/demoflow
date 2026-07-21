@@ -8,6 +8,7 @@ import { createPreview, getPreview, stopPreview } from "./proxy.js";
 import { inspectBranchChanges } from "./branch.js";
 import { blockedDemoControls, suggestDemoStarts } from "./suggestions.js";
 import { checkDemoEnvironment, discoverDemoEnvironments, prepareDemoEnvironment } from "./environment.js";
+import { reviewStoryboard, StoryboardSchema } from "./storyboard.js";
 import path from "node:path";
 
 const server = new McpServer({ name: "demoflow", version: "0.1.0" });
@@ -78,6 +79,17 @@ server.tool(
   async ({ workspacePath, appDirectory, intent }) => {
     const appMap = lastInspectedAppMaps.get(appMapKey(workspacePath, appDirectory)) ?? await inspectAndRemember(workspacePath, appDirectory);
     return { content: [{ type: "text", text: JSON.stringify({ intent: intent ?? "", candidates: suggestDemoStarts(appMap, intent), blockedControls: blockedDemoControls(appMap) }, null, 2) }] };
+  },
+);
+
+server.tool(
+  "review_storyboard",
+  "Review a human-readable demo storyboard against the inspected local app map before writing a spec. It returns a Markdown table with each real user action, its source evidence, known prerequisites, and confidence. It never writes files or starts the app.",
+  { workspacePath: z.string(), appDirectory: z.string().optional(), storyboard: StoryboardSchema },
+  async ({ workspacePath, appDirectory, storyboard }) => {
+    const appMap = lastInspectedAppMaps.get(appMapKey(workspacePath, appDirectory)) ?? await inspectAndRemember(workspacePath, appDirectory);
+    const review = reviewStoryboard(appMap, storyboard);
+    return { content: [{ type: "text", text: review.markdown }] };
   },
 );
 

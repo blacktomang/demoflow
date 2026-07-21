@@ -1,6 +1,6 @@
 {
   "name": "demoflow",
-  "version": "0.1.0+codex.20260721162836",
+  "version": "0.1.0+codex.20260721175418",
   "description": "Generate live guided demos for local web apps in Codex.",
   "author": {
     "name": "DemoFlow"
