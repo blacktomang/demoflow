@@ -9,8 +9,13 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 
 ## Workflow
 
-1. Use Codex's terminal tool to run `node --version`. If Node.js is missing or below 20, explain the prerequisite and stop before calling DemoFlow MCP tools.
-2. Call `demoflow.list_demos` first. This lists saved demos without reading application source code.
+1. For a new or regenerated demo, begin with one compact **Demo Brief**. Ask the developer for only these three answers, in one guided message (not a dashboard or raw JSON):
+   - **What are you showing?** New feature, PR change, onboarding, or bug fix.
+   - **Who is watching?** Engineer, product stakeholder, or customer.
+   - **What should they understand by the end?** Free-form outcome.
+   Use reasonable values only when the developer already gave all three. Call `demoflow.prepare_demo_brief` with the answers before inspecting source. Do not ask for a duration or estimate.
+2. Use Codex's terminal tool to run `node --version`. If Node.js is missing or below 20, explain the prerequisite and stop before calling DemoFlow MCP tools.
+3. Call `demoflow.list_demos` first. This lists saved demos without reading application source code.
 3. If the developer chooses a saved demo, use its `demo.spec.json` directly; do not call `inspect_project`. Offer `demoflow.check_demo_freshness` only when the developer asks to validate it or when a stale-flow warning is needed. A `current` result can run; a `stale` result needs the developer's choice to run anyway or regenerate; an `unknown` result should offer the same choice.
 4. For a new or regenerated demo, call `demoflow.list_environments` before source inspection. If it returns a declared or detected profile, state its app directory, one declared start script, app URL, and API readiness URLs. Ask the developer to choose a profile when more than one is available; do not invent a backend command or edit environment files. For a selected profile, call `demoflow.inspect_project` with its `appDirectory`. Otherwise call `inspect_project` at the workspace root. Its source scan covers React/Next.js `src/`, root `app/`, `pages/`, and `components/`; an app does not need to be running for it to discover static routes and UI controls.
    - When the developer asks to demo the checked-out branch, PR changes, or what changed, call `demoflow.inspect_branch_changes` first. It uses only local Git history and returns the detected base branch, commits, and changed paths.

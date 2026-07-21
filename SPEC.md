@@ -53,6 +53,7 @@ The plugin skill must first present a reviewable human-readable storyboard, then
 | Tool | Input | Result |
 | --- | --- | --- |
 | `demoflow.list_demos` | workspace path | saved demo titles, goals, steps, and saved fingerprints without a source scan |
+| `demoflow.prepare_demo_brief` | showing, audience, outcome | validated developer-directed brief and selection guidance; no source scan or file write |
 | `demoflow.check_demo_freshness` | workspace path + demo ID | `current`, `stale`, or `unknown` after an on-demand compact scan |
 | `demoflow.list_environments` | workspace path | declared or safely inferred frontend package, declared startup script, app URL, and loopback readiness URLs |
 | `demoflow.inspect_project` | workspace path + optional app directory | framework, scripts, route, test-ID, source-relative UI-control summary, and bounded React/Next render prerequisites/transitions |
@@ -84,6 +85,11 @@ type DemoSpec = {
   id: string;
   title: string;
   goal: string;
+  brief?: {
+    showing: "new-feature" | "pr-change" | "onboarding" | "bug-fix";
+    audience: "engineer" | "product-stakeholder" | "customer";
+    outcome: string;
+  };
   startPath: string;
   intro?: { title: string; body: string };
   provenance?: { baseBranch: string; baseCommit: string; currentBranch: string; currentCommit: string };

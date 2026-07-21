@@ -28,6 +28,14 @@ const IntroSchema = z.object({
   body: z.string().min(1),
 });
 
+export const DemoBriefSchema = z.object({
+  showing: z.enum(["new-feature", "pr-change", "onboarding", "bug-fix"]),
+  audience: z.enum(["engineer", "product-stakeholder", "customer"]),
+  outcome: z.string().trim().min(3).max(280),
+});
+
+export type DemoBrief = z.infer<typeof DemoBriefSchema>;
+
 const ProvenanceSchema = z.object({
   baseBranch: z.string().min(1),
   baseCommit: z.string().regex(/^[a-f0-9]{40}$/),
@@ -41,6 +49,7 @@ export const DemoSpecSchema = z.object({
   title: z.string().min(1),
   goal: z.string().min(1),
   startPath: z.string().startsWith("/"),
+  brief: DemoBriefSchema.optional(),
   intro: IntroSchema.optional(),
   provenance: ProvenanceSchema.optional(),
   presentation: PresentationSchema.optional(),

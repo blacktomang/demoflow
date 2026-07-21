@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { inspectProject, type AppMap } from "./inspector.js";
-import { writeDemoSpec, DemoSpecSchema, listDemoSpecs, readDemoSpec } from "./spec.js";
+import { writeDemoSpec, DemoBriefSchema, DemoSpecSchema, listDemoSpecs, readDemoSpec } from "./spec.js";
 import { prepareAppStart } from "./start-command.js";
 import { createPreview, getPreview, stopPreview } from "./proxy.js";
 import { inspectBranchChanges } from "./branch.js";
@@ -23,6 +23,24 @@ async function inspectAndRemember(workspacePath: string, appDirectory?: string):
   lastInspectedAppMaps.set(appMapKey(workspacePath, appDirectory), appMap);
   return appMap;
 }
+
+server.tool(
+  "prepare_demo_brief",
+  "Validate the developer-directed Demo Brief before project inspection. It records what is being shown, who is watching, and the outcome the demo must make clear; it never reads source or writes files.",
+  {
+    showing: DemoBriefSchema.shape.showing.describe("new-feature, pr-change, onboarding, or bug-fix"),
+    audience: DemoBriefSchema.shape.audience.describe("engineer, product-stakeholder, or customer"),
+    outcome: DemoBriefSchema.shape.outcome.describe("What the audience should understand by the end of this demo"),
+  },
+  async (brief) => ({ content: [{ type: "text", text: JSON.stringify({
+    brief,
+    guidance: {
+      sourceInspection: brief.showing === "pr-change" ? "Inspect local branch changes before source inspection." : "Inspect the selected local app source next.",
+      presentation: brief.audience === "engineer" ? "Use precise implementation-aware language without turning the overlay into a debug tool." : "Use plain product-facing language in the intro and tooltips.",
+      selection: "Use this outcome to rank proposed journeys, but present choices when several valid stories remain.",
+    },
+  }, null, 2) }] }),
+);
 
 server.tool(
   "list_demos",

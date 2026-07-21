@@ -17,6 +17,7 @@
 - [x] Create `.codex-plugin/plugin.json` with valid plugin metadata.
 - [x] Create `skills/generate-demo/SKILL.md`.
 - [x] Instruct the skill to inspect before acting, write a structured spec, and ask approval before starting a project script.
+- [x] Collect a compact Demo Brief (showing, audience, outcome) before source inspection and save it in generated specs.
 - [x] Register the local DemoFlow MCP server in the plugin.
 - [x] Document installation and supported platform: macOS, Node 20+, Vite/React sample app.
 
