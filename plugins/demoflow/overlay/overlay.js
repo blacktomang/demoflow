@@ -1,6 +1,6 @@
 (() => {
   const targetWaitMs = 5_000;
-  const state = { spec: null, index: 0, introAcknowledged: false, target: null, markedTarget: null, skippedStep: null, observer: null, reportedFailures: new Set(), reportedDiagnostics: new Set(), waitingKey: null, waitingSince: 0, waitTimer: null, failedTargetKeys: new Set(), filledStepKeys: new Set() };
+  const state = { spec: null, index: 0, introAcknowledged: false, target: null, markedTarget: null, skippedStep: null, observer: null, targetResizeObserver: null, positionFrame: null, settlingTarget: null, settleFrame: null, reportedFailures: new Set(), reportedDiagnostics: new Set(), waitingKey: null, waitingSince: 0, waitTimer: null, failedTargetKeys: new Set(), filledStepKeys: new Set() };
   const root = document.createElement("div");
   root.id = "__demoflow_root";
   root.innerHTML = `
@@ -100,6 +100,13 @@
   }
 
   function clearTargetMarker() {
+    if (state.positionFrame) cancelAnimationFrame(state.positionFrame);
+    if (state.settleFrame) cancelAnimationFrame(state.settleFrame);
+    state.positionFrame = null;
+    state.settleFrame = null;
+    state.settlingTarget = null;
+    state.targetResizeObserver?.disconnect();
+    state.targetResizeObserver = null;
     state.markedTarget?.removeAttribute("data-demoflow-target");
     state.markedTarget = null;
   }
@@ -109,6 +116,19 @@
     clearTargetMarker();
     target.setAttribute("data-demoflow-target", step.id);
     state.markedTarget = target;
+    if (typeof ResizeObserver !== "undefined") {
+      state.targetResizeObserver = new ResizeObserver(schedulePosition);
+      state.targetResizeObserver.observe(target);
+    }
+  }
+
+  function schedulePosition() {
+    if (!state.target || state.settlingTarget || state.positionFrame) return;
+    state.positionFrame = requestAnimationFrame(() => {
+      state.positionFrame = null;
+      if (state.target && document.contains(state.target)) position(state.target);
+      else render();
+    });
   }
 
   function reportFailure(step, reason) {
@@ -271,9 +291,44 @@
 
   function reveal(target) {
     const rect = target.getBoundingClientRect();
-    if (rect.top < 16 || rect.bottom > window.innerHeight - 16 || rect.left < 16 || rect.right > window.innerWidth - 16) {
+    const centerY = rect.top + rect.height / 2;
+    // A target can be technically visible at the bottom yet leave no room for
+    // the walkthrough. Bring it into a central action zone before positioning.
+    const outsideActionZone = centerY < window.innerHeight * .35 || centerY > window.innerHeight * .65
+      || rect.left < 16 || rect.right > window.innerWidth - 16;
+    if (outsideActionZone) {
       target.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
     }
+  }
+
+  function revealThenPosition(target) {
+    if (state.settlingTarget === target) return;
+    state.settlingTarget = target;
+    halo.style.display = "none";
+    card.style.visibility = "hidden";
+    reveal(target);
+    let prior = null;
+    let stableFrames = 0;
+    let frames = 0;
+    const settle = () => {
+      if (state.settlingTarget !== target || !document.contains(target)) return;
+      const rect = target.getBoundingClientRect();
+      const current = `${Math.round(rect.top)}:${Math.round(rect.left)}:${Math.round(rect.width)}:${Math.round(rect.height)}`;
+      stableFrames = current === prior ? stableFrames + 1 : 0;
+      prior = current;
+      frames += 1;
+      // Wait for two stable animation frames (or a bounded fallback) after
+      // scrollIntoView and React layout work before drawing fixed coordinates.
+      if (stableFrames >= 2 || frames >= 18) {
+        state.settlingTarget = null;
+        state.settleFrame = null;
+        card.style.visibility = "visible";
+        schedulePosition();
+        return;
+      }
+      state.settleFrame = requestAnimationFrame(settle);
+    };
+    state.settleFrame = requestAnimationFrame(settle);
   }
 
   function conditionSatisfied(step, event) {
@@ -322,7 +377,7 @@
         : step.advance.type === "click-target" ? " Select the highlighted control to continue." : "";
     body.textContent = `${step.tooltip.body}${actionHint}`;
     progress.textContent = `${state.index + 1} / ${state.spec.steps.length}`;
-    reveal(target); requestAnimationFrame(() => position(target));
+    revealThenPosition(target);
   }
 
   function exit() { stopWaiting(); state.observer?.disconnect(); clearTargetMarker(); root.remove(); }
@@ -337,10 +392,11 @@
     clearComplete();
     stopWaiting();
 
-    // Browsers can treat assigning the current URL as a no-op. Re-resolving here
-    // makes Restart redraw the halo immediately without relying on a hard refresh.
+    // A walkthrough restart must also restart ordinary client-side application
+    // state. Assigning the current route can be a no-op, so hard reload it.
+    // This deliberately does not try to mutate an app's server or persisted data.
     if (location.pathname === state.spec.startPath) {
-      requestAnimationFrame(render);
+      location.reload();
       return;
     }
     location.assign(state.spec.startPath);
@@ -356,12 +412,17 @@
   document.addEventListener("change", advanceIfReady, true);
   document.addEventListener("submit", advanceIfReady, true);
   window.addEventListener("popstate", () => setTimeout(render, 0));
-  window.addEventListener("resize", () => state.target && position(state.target));
+  // The overlay is fixed while the host app scrolls. Track scroll and target
+  // reflow so the halo and card never retain stale viewport coordinates.
+  window.addEventListener("resize", schedulePosition);
+  window.addEventListener("scroll", schedulePosition, true);
+  window.visualViewport?.addEventListener("resize", schedulePosition);
+  window.visualViewport?.addEventListener("scroll", schedulePosition);
   window.addEventListener("error", (event) => reportDiagnostic("window-error", event.message));
   window.addEventListener("unhandledrejection", (event) => reportDiagnostic("unhandled-rejection", event.reason?.message || String(event.reason)));
 
   fetch(window.__DEMOFLOW_SPEC_URL__ || "/__demoflow/spec.json")
     .then((response) => response.json())
-    .then((spec) => { state.spec = spec; root.dataset.theme = spec.presentation?.theme || "presenter"; state.observer = new MutationObserver(() => { reportVisibleAppAlerts(); if (state.target && document.contains(state.target)) position(state.target); else render(); }); state.observer.observe(document.body, { childList: true, subtree: true }); reportVisibleAppAlerts(); render(); })
+    .then((spec) => { state.spec = spec; root.dataset.theme = spec.presentation?.theme || "presenter"; state.observer = new MutationObserver(() => { reportVisibleAppAlerts(); if (state.target && document.contains(state.target)) schedulePosition(); else render(); }); state.observer.observe(document.body, { childList: true, subtree: true }); reportVisibleAppAlerts(); render(); })
     .catch(exit);
 })();

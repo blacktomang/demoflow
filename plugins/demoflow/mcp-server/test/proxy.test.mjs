@@ -57,6 +57,10 @@ test("serves the spec and overlay from reserved local paths", async () => {
   assert.match(overlay, /Demo complete/);
   assert.match(overlay, /associated form control/);
   assert.match(overlay, /overlapsTarget/);
+  assert.match(overlay, /window\.addEventListener\("scroll", schedulePosition, true\)/);
+  assert.match(overlay, /location\.reload\(\)/);
+  assert.match(overlay, /revealThenPosition/);
+  assert.match(overlay, /outsideActionZone/);
 });
 
 test("forwards decoded compressed stylesheets without stale compression headers", async () => {
