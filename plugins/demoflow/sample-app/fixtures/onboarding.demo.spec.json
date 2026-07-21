@@ -13,21 +13,21 @@
     },
     {
       "id": "save-workspace",
-      "target": { "testId": "save-workspace" },
-      "tooltip": { "title": "Name the workspace", "body": "Choose a clear name so teammates know where shared work belongs." },
-      "advance": { "type": "click-target" }
+      "target": { "label": "Workspace name" },
+      "tooltip": { "title": "Name your workspace", "body": "Add a demo-safe workspace name, then continue to project setup." },
+      "advance": { "type": "input-and-click", "minLength": 3, "submitTarget": { "testId": "save-workspace" } }
     },
     {
       "id": "create-project",
-      "target": { "testId": "create-project" },
-      "tooltip": { "title": "Start a project", "body": "Projects organize the work your team will plan and deliver together." },
-      "advance": { "type": "click-target" }
+      "target": { "label": "Project name" },
+      "tooltip": { "title": "Create the first project", "body": "Add a demo-safe project name, then create the project." },
+      "advance": { "type": "input-and-click", "minLength": 3, "submitTarget": { "testId": "create-project" } }
     },
     {
       "id": "invite-teammate",
-      "target": { "testId": "invite-teammate" },
-      "tooltip": { "title": "Invite your teammate", "body": "Bring collaborators into the workspace so they can contribute right away." },
-      "advance": { "type": "click-target" }
+      "target": { "label": "Teammate email" },
+      "tooltip": { "title": "Invite a teammate", "body": "Enter a demo-safe email address, then send the invitation." },
+      "advance": { "type": "input-and-click", "minLength": 5, "submitTarget": { "testId": "invite-teammate" } }
     }
   ]
 }

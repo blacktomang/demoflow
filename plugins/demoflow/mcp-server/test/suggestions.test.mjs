@@ -19,3 +19,20 @@ test("ranks product actions ahead of restore and setup controls", () => {
   assert.equal(suggestions.at(-1).control.name, "Restore Greenwater lesson");
   assert.equal(suggestions.at(-1).category, "setup-action");
 });
+
+test("keeps distinct viable starting flows available for developer choice", () => {
+  const suggestions = suggestDemoStarts({
+    ...appMap,
+    controls: [
+      { kind: "button", name: "Create a workspace", source: "src/Onboarding.tsx" },
+      { kind: "button", name: "Import a workspace", source: "src/Import.tsx" },
+      { kind: "button", name: "Restore demo workspace", source: "src/DevTools.tsx" },
+    ],
+  }, "set up a team");
+
+  assert.deepEqual(suggestions.map((candidate) => candidate.control.name), [
+    "Create a workspace",
+    "Import a workspace",
+    "Restore demo workspace",
+  ]);
+});
