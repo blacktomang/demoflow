@@ -56,11 +56,14 @@ test("serves the spec and overlay from reserved local paths", async () => {
   assert.match(overlay, /__demoflow_root/);
   assert.match(overlay, /Demo complete/);
   assert.match(overlay, /associated form control/);
-  assert.match(overlay, /overlapsTarget/);
+  assert.match(overlay, /function overlaps/);
   assert.match(overlay, /window\.addEventListener\("scroll", schedulePosition, true\)/);
   assert.match(overlay, /location\.reload\(\)/);
   assert.match(overlay, /revealThenPosition/);
   assert.match(overlay, /outsideActionZone/);
+  assert.match(overlay, /meaningfulHostElements/);
+  assert.match(overlay, /contentOcclusion/);
+  assert.match(overlay, /data-compact/);
 });
 
 test("forwards decoded compressed stylesheets without stale compression headers", async () => {

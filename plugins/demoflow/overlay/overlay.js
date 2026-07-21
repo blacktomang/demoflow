@@ -10,7 +10,12 @@
       #__demoflow_root[data-theme="debug"] { --df-dim: rgba(15, 23, 42, .38); --df-accent: #818cf8; --df-accent-soft: rgba(129, 140, 248, .2); --df-card: #172554; --df-ink: #eef2ff; --df-muted: #c7d2fe; --df-rule: #818cf8; --df-shadow: rgba(15, 23, 42, .4); }
       #__demoflow_dim { position: absolute; inset: 0; background: var(--df-dim); transition: background .24s ease; }
       #__demoflow_halo { position: fixed; border: 2px solid var(--df-accent); border-radius: 9px; box-shadow: 0 0 0 6px var(--df-accent-soft); transition: all .2s ease; }
-      #__demoflow_card { position: fixed; width: min(360px, calc(100vw - 32px)); padding: 18px 18px 14px; color: var(--df-ink); background: var(--df-card); border: 1px solid var(--df-rule); border-radius: 14px; box-shadow: 0 22px 64px var(--df-shadow); backdrop-filter: blur(16px); }
+      #__demoflow_card { position: fixed; box-sizing: border-box; width: min(396px, calc(100vw - 32px)); padding: 18px 18px 14px; color: var(--df-ink); background: var(--df-card); border: 1px solid var(--df-rule); border-radius: 14px; box-shadow: 0 22px 64px var(--df-shadow); backdrop-filter: blur(16px); }
+      #__demoflow_card[data-compact="true"] { width: min(228px, calc(100vw - 32px)); padding: 13px 14px 11px; }
+      #__demoflow_card[data-compact="true"] #__demoflow_kicker { margin-bottom: 6px; font-size: 9px; }
+      #__demoflow_card[data-compact="true"] h2 { margin-bottom: 5px; font-size: 18px; }
+      #__demoflow_card[data-compact="true"] p { font-size: 12px; line-height: 1.4; }
+      #__demoflow_card[data-compact="true"] #__demoflow_controls { gap: 8px; margin-top: 11px; padding-top: 8px; }
       #__demoflow_kicker { margin: 0 0 8px; color: var(--df-accent); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
       #__demoflow_card h2 { margin: 0 0 7px; color: var(--df-ink); font-family: Georgia, "Times New Roman", serif; font-size: 21px; font-weight: 600; letter-spacing: -.035em; line-height: 1.05; text-wrap: balance; }
       #__demoflow_card p { margin: 0; color: var(--df-muted); font-size: 14px; line-height: 1.5; text-wrap: pretty; }
@@ -260,32 +265,81 @@
     root.append(panel); reportFailure(step, reason);
   }
 
+  function overlaps(rect, other) {
+    return Math.max(0, Math.min(rect.right, other.right) - Math.max(rect.left, other.left))
+      * Math.max(0, Math.min(rect.bottom, other.bottom) - Math.max(rect.top, other.top));
+  }
+
+  function meaningfulHostElements(target) {
+    const selector = "button, a[href], input, textarea, select, [contenteditable='true'], label, h1, h2, h3, h4, h5, h6, p, li, [role='button'], [role='link'], [role='textbox'], [role='heading']";
+    return [...document.querySelectorAll(selector)].filter((node) => {
+      if (root.contains(node) || node === target || target.contains(node) || node.contains(target)) return false;
+      const style = window.getComputedStyle(node);
+      const rect = node.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0
+        && rect.width > 1 && rect.height > 1 && rect.bottom > 0 && rect.right > 0
+        && rect.top < window.innerHeight && rect.left < window.innerWidth;
+    });
+  }
+
+  function contentOcclusion(candidate, content) {
+    return content.reduce((score, node) => {
+      const rect = node.getBoundingClientRect();
+      const overlapArea = overlaps(candidate, rect);
+      if (!overlapArea) return score;
+      const interactive = node.matches("button, a[href], input, textarea, select, [contenteditable='true'], [role='button'], [role='link'], [role='textbox']");
+      const heading = node.matches("h1, h2, h3, h4, h5, h6, [role='heading']");
+      const weight = interactive ? 16 : heading ? 6 : node.matches("label") ? 4 : 1;
+      // Relative coverage prevents a long paragraph from outweighing a fully
+      // obscured form control, while still preferring genuine empty space.
+      return score + weight * (overlapArea / Math.max(1, rect.width * rect.height));
+    }, 0);
+  }
+
+  function cardMeasurements(compact) {
+    if (compact) card.dataset.compact = "true";
+    else delete card.dataset.compact;
+    return { width: card.offsetWidth, height: card.offsetHeight };
+  }
+
+  function candidatesFor(rect, dimensions, bounds, gap) {
+    const { width, height } = dimensions;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    return [
+      { left: clamp(rect.left, bounds.left, bounds.right - width), top: rect.top - height - gap, compact: false },
+      { left: clamp(rect.left, bounds.left, bounds.right - width), top: rect.bottom + gap, compact: false },
+      { left: rect.right + gap, top: clamp(rect.top + (rect.height - height) / 2, bounds.top, bounds.bottom - height), compact: false },
+      { left: rect.left - width - gap, top: clamp(rect.top + (rect.height - height) / 2, bounds.top, bounds.bottom - height), compact: false },
+    ];
+  }
+
   function position(target) {
     const rect = target.getBoundingClientRect();
     halo.style.display = "block";
     halo.style.left = `${rect.left - 5}px`; halo.style.top = `${rect.top - 5}px`;
     halo.style.width = `${rect.width + 4}px`; halo.style.height = `${rect.height + 4}px`;
     const gap = 18;
-    const width = card.offsetWidth;
-    const height = card.offsetHeight;
-    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const bounds = { left: 16, top: 16, right: window.innerWidth - 16, bottom: window.innerHeight - 16 };
-    const overlapsTarget = (left, top) => left < rect.right + gap && left + width > rect.left - gap && top < rect.bottom + gap && top + height > rect.top - gap;
-    const fits = (left, top) => left >= bounds.left && top >= bounds.top && left + width <= bounds.right && top + height <= bounds.bottom;
-
-    // Preserve the real action as the highest priority. For bottom-of-page
-    // controls this places the explanation above the button instead of over it.
-    const candidates = [
-      { left: clamp(rect.left, bounds.left, bounds.right - width), top: rect.top - height - gap },
-      { left: clamp(rect.left, bounds.left, bounds.right - width), top: rect.bottom + gap },
-      { left: rect.right + gap, top: clamp(rect.top + (rect.height - height) / 2, bounds.top, bounds.bottom - height) },
-      { left: rect.left - width - gap, top: clamp(rect.top + (rect.height - height) / 2, bounds.top, bounds.bottom - height) },
-    ];
-    const placement = candidates.find(({ left, top }) => fits(left, top) && !overlapsTarget(left, top))
-      // At very small viewport sizes a non-overlapping card may be impossible.
-      // Keep its edge as far from the target as possible rather than covering it.
-      ?? candidates.map(({ left, top }) => ({ left: clamp(left, bounds.left, bounds.right - width), top: clamp(top, bounds.top, bounds.bottom - height) }))
-        .sort((a, b) => Math.abs(a.top - rect.top) - Math.abs(b.top - rect.top))[0];
+    const content = meaningfulHostElements(target);
+    const normal = cardMeasurements(false);
+    const compact = cardMeasurements(true);
+    const options = [
+      ...candidatesFor(rect, normal, bounds, gap).map((candidate) => ({ ...candidate, dimensions: normal, compact: false })),
+      ...candidatesFor(rect, compact, bounds, gap).map((candidate) => ({ ...candidate, dimensions: compact, compact: true })),
+    ].map((candidate) => {
+      const cardRect = { left: candidate.left, top: candidate.top, right: candidate.left + candidate.dimensions.width, bottom: candidate.top + candidate.dimensions.height };
+      const fits = cardRect.left >= bounds.left && cardRect.top >= bounds.top && cardRect.right <= bounds.right && cardRect.bottom <= bounds.bottom;
+      const targetRect = { left: rect.left - gap, top: rect.top - gap, right: rect.right + gap, bottom: rect.bottom + gap };
+      const targetPenalty = overlaps(cardRect, targetRect) > 0 ? 1_000_000 : 0;
+      const compactPenalty = candidate.compact ? .35 : 0;
+      return { ...candidate, score: (fits ? 0 : 100_000) + targetPenalty + contentOcclusion(cardRect, content) + compactPenalty };
+    });
+    // Prefer an unobstructed explanation placement. When the viewport is dense,
+    // a compact side card is allowed to beat a large card that would hide fields,
+    // headings, or other actionable content.
+    const placement = options.sort((a, b) => a.score - b.score)[0];
+    if (placement.compact) card.dataset.compact = "true";
+    else delete card.dataset.compact;
     card.style.top = `${placement.top}px`; card.style.left = `${placement.left}px`;
   }
 
