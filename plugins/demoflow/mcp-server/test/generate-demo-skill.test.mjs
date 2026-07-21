@@ -16,15 +16,15 @@ test("requires a human-readable storyboard before DemoFlow writes a spec", async
   const storyboardHeader = "| Step | User action | Why it matters | Evidence | Confidence |";
 
   assert.ok(skill.includes(storyboardHeader));
-  assert.ok(skill.indexOf(storyboardHeader) < skill.indexOf("8. Write a versioned `demo.spec.json`"));
-  assert.match(skill, /Do not show a JSON draft, write a spec, start the app, or create a preview until they do\./);
+  assert.ok(skill.indexOf(storyboardHeader) < skill.indexOf("9. Write a versioned `demo.spec.json`"));
+  assert.match(skill, /Do not show a JSON draft, write a spec, start the app, or create a preview until they confirm it\./);
 });
 
 test("requires explicit flow choice and records every independently clickable action", async () => {
   const skill = await readSkill();
 
-  assert.match(skill, /If the codebase supports more than one plausible main flow[\s\S]*?Wait for the developer to choose\./);
-  assert.match(skill, /Represent every independently clickable real control as its own storyboard row and its own demo-spec step\./);
-  assert.match(skill, /input followed by its real submit button may remain one row and one `input-and-click` step/);
+  assert.match(skill, /If more than one viable start exists,[\s\S]*?ask which flow they want demonstrated/);
+  assert.match(skill, /Every real click, navigation, or meaningful field interaction must have its own storyboard row in execution order\./);
+  assert.match(skill, /The sole exception is filling a field and clicking its real submit button: show both in one row as a compound action, then use `input-and-click` in the eventual spec\./);
   assert.match(skill, /DemoFlow has no maximum step limit\./);
 });

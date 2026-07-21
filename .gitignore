@@ -3,5 +3,6 @@ dist/
 .demoflow/
 .DS_Store
 *.log
+*.tsbuildinfo
 .pnpm-store/
 pnpm-workspace.yaml

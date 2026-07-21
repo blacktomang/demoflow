@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { reviewStoryboard } from "../dist/storyboard.js";
+import { reviewStoryboard, StoryboardSchema } from "../dist/storyboard.js";
 
 const appMap = {
   workspacePath: "/project", appDirectory: ".", frameworkHints: ["react"], scripts: ["dev"], routes: ["/"], testIds: ["create-workspace"], labels: ["Workspace name"], fingerprint: "a".repeat(64), stateFacts: [], transitions: [],
@@ -42,4 +42,19 @@ test("blocks an ambiguous storyboard target until it is scoped", () => {
   assert.equal(review.ready, false);
   assert.match(review.markdown, /multiple source matches/);
   assert.match(review.markdown, /Add a test ID, withinText, or occurrence/);
+});
+
+test("allows a complete storyboard with more than eight actions", () => {
+  const storyboard = StoryboardSchema.parse({
+    title: "Complete workflow",
+    goal: "Show every meaningful product action",
+    steps: Array.from({ length: 9 }, (_, index) => ({
+      title: `Action ${index + 1}`,
+      userAction: `Select action ${index + 1}`,
+      whyItMatters: "Keeps the complete journey visible.",
+      target: { testId: `action-${index + 1}` },
+    })),
+  });
+
+  assert.equal(storyboard.steps.length, 9);
 });

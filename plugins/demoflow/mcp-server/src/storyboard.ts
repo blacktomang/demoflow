@@ -12,7 +12,7 @@ const StoryboardStepSchema = z.object({
 export const StoryboardSchema = z.object({
     title: z.string().trim().min(2).max(140),
     goal: z.string().trim().min(2).max(360),
-    steps: z.array(StoryboardStepSchema).min(1).max(8),
+    steps: z.array(StoryboardStepSchema).min(1),
 });
 
 export type Storyboard = z.infer<typeof StoryboardSchema>;
