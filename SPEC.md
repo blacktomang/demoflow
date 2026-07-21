@@ -9,7 +9,7 @@ It deliberately excludes Playwright, autonomous clicking, screenshots, and video
 ## 2. End-to-end interaction
 
 1. The developer opens a repository in Codex and asks for a demo flow.
-2. For a new demo, the DemoFlow skill inspects local source files, presents a human-readable storyboard for the developer to review, then writes `.demoflow/<demo-id>/demo.spec.json` plus a compact app-map snapshot after the developer accepts the selected flow. A saved demo can run directly without this inspection.
+2. For a new demo, the DemoFlow skill inspects local source files, asks the developer to choose among multiple viable product journeys, and reviews a human-readable source-backed storyboard before it writes `.demoflow/<demo-id>/demo.spec.json` plus a compact app-map snapshot. A saved demo can run directly without this inspection.
 3. The MCP server validates a declared project development script and returns its exact command, working directory, and likely loopback URL without executing it.
 4. Codex runs that command in its terminal session. Codex displays its native approval prompt, so the developer can approve, deny, or give feedback before the app starts.
 5. Once the app is running, the MCP server starts a DemoFlow proxy on another local port.
@@ -58,6 +58,7 @@ The plugin skill must first present a reviewable human-readable storyboard, then
 | `demoflow.list_environments` | workspace path | declared or safely inferred frontend package, declared startup script, app URL, and loopback readiness URLs |
 | `demoflow.inspect_project` | workspace path + optional app directory | framework, scripts, route, test-ID, source-relative UI-control summary, and bounded React/Next render prerequisites/transitions |
 | `demoflow.suggest_demo_starts` | workspace path + optional requested outcome | up to three ranked clean-start controls plus separately reported blocked controls and their known prerequisites |
+| `demoflow.review_storyboard` | workspace path + proposed storyboard | Markdown review table with source evidence, known prerequisites, confidence, and issues; no file write |
 | `demoflow.inspect_branch_changes` | workspace path + optional base branch | local base/current branches, commit SHAs, and changed-file summary for a branch-aware demo |
 | `demoflow.write_spec` | demo ID + validated spec | saved path, demo-local app-map snapshot, and fingerprint |
 | `demoflow.prepare_app_start` | declared package script | exact command, working directory, and likely local base URL; no process is started |
@@ -121,6 +122,17 @@ type AdvanceCondition =
 ```
 
 Target resolution priority is `testId`, `role/name`, `label`, then CSS. A target must resolve to exactly one element. Each independently clickable control is represented as an ordered demo step; DemoFlow does not compress an untracked second click into a `click-target` action. An input and its actual submit control may be one `input-and-click` step because together they complete one form action. There is no maximum number of steps in a demo spec, so a complete selected flow can remain in one walkthrough. For repeated controls such as `Join`, the spec should use a stable test ID or include `withinText` with the visible card title. `withinText` resolves against the closest containing card, not a page-wide ancestor. When the intended journey explicitly calls for the first (or another ordered) repeated control and no reliable card title exists, Codex records a one-based `occurrence` to make that choice deterministic. Generated CSS selectors must be avoided unless no semantic target is available.
+
+### Storyboard review before specification
+
+For a new or regenerated demo, Codex must show the developer a Markdown storyboard before calling `write_spec`:
+
+| Step | User action | Why it matters | Evidence | Confidence |
+| --- | --- | --- | --- | --- |
+| Create workspace | Select “Create workspace” | Establishes the shared home | `app/page.tsx` button “Create workspace” | High |
+| Name workspace | Enter a safe fixture value, then select “Continue” | Makes setup intentional | label “Workspace name” + button “Continue” | High |
+
+Each row represents one real application interaction and becomes one `DemoStep`. A field plus its real submit button is the only compound row; it maps to `input-and-click`. `review_storyboard` generates the evidence and confidence from the compact app map rather than trusting prose from the coding agent. Low confidence blocks spec creation until the target is made specific. Medium confidence identifies a source-known conditional prerequisite that must be included in the selected journey or verified at runtime. If source inspection finds multiple viable starts, Codex presents the separate stories and waits for developer selection before proposing a storyboard. The JSON spec remains the durable machine-readable runtime artifact.
 
 `presentation.theme` controls only the temporary overlay: `presenter` is the default, product-facing warm-neutral walkthrough; `minimal` is a quieter neutral treatment; `debug` retains a high-contrast engineering surface for selector repair. Themes never alter the host application.
 

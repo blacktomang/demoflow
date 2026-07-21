@@ -64,9 +64,9 @@ They want a reusable walkthrough, but this release intentionally prioritizes the
 
 1. User installs the DemoFlow Codex plugin and its local dependencies.
 2. User opens a supported web-app repository in Codex.
-3. User asks DemoFlow for a goal and target duration.
-4. Codex examines the codebase, identifies distinct plausible customer flows, and asks the user to choose when the request does not clearly name one.
-5. Codex presents a human-readable storyboard—action, value, evidence, and confidence—for the selected flow. The user confirms or adjusts it before a spec is saved.
+3. User answers a compact Demo Brief: what they are showing, who is watching, and what the audience should understand by the end.
+4. Codex examines the codebase, identifies distinct plausible customer flows, and asks the developer to choose when the request does not clearly name one.
+5. Before any spec is written, Codex presents a source-backed human-readable storyboard with each user action, its value, evidence, and confidence; the developer confirms or adjusts it.
 6. DemoFlow starts the app using a detected or user-approved development command.
 7. DemoFlow serves the app through a local preview URL and injects its temporary overlay into the rendered HTML.
 8. Before the first action, DemoFlow presents a brief product-facing introduction explaining what this demo will show.
@@ -94,9 +94,9 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 ### Required plugin behavior
 
 - Provide a `Generate demo` skill for Codex.
-- Ask for or infer: goal, target duration, and local start command.
-- Show a human-readable storyboard before any JSON spec is written, with `Step`, `User action`, `Why it matters`, `Evidence`, and `Confidence` columns.
-- When source evidence reveals multiple plausible main flows, ask the developer to choose one rather than silently selecting a ranked start control.
+- Ask for or infer a compact Demo Brief (showing, audience, outcome) and the local start command. Do not use a duration estimate.
+- Keep the model plan structured and reviewable before actions run.
+- Present a human-readable storyboard before `demo.spec.json`, source-check every planned action, and require the developer to choose among multiple viable product journeys.
 - Call the local MCP tools rather than relying on prose-only instructions.
 - Return a validated app-start command to Codex; Codex executes it through its native command-approval UI so the developer can approve, deny, or explain an adjustment.
 - When asked to demo the checked-out branch, compare local `HEAD` with a detected or developer-specified base branch, identify changed files, and let the developer choose a proposed journey or provide their own focus. This is read-only local Git analysis; it never fetches PRs, changes branches, or contacts GitHub.

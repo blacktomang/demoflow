@@ -3,7 +3,7 @@ import path from "node:path";
 import { z } from "zod";
 import type { AppMap } from "./inspector.js";
 
-const TargetSchema = z.union([
+export const TargetSchema = z.union([
   z.object({ testId: z.string().min(1) }),
   z.object({ role: z.string().min(1), name: z.string().min(1), withinText: z.string().min(1).optional(), occurrence: z.number().int().min(1).optional() }),
   z.object({ label: z.string().min(1) }),

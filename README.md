@@ -34,10 +34,12 @@ Start a new Codex task after installation so its DemoFlow skill and MCP tools ar
 1. Open the local web-app project in Codex.
 2. Ask, for example: `Use DemoFlow to create a guided onboarding demo for this app.`
 3. Answer DemoFlow's compact **Demo Brief**: what you are showing (new feature, PR change, onboarding, or bug fix), who is watching, and what they should understand by the end. There is no duration estimate and no dashboard.
-4. Review the generated editable flow at `.demoflow/<demo-id>/demo.spec.json`.
-5. Approve Codex's native command prompt for the project's existing development script, or cancel/explain an adjustment there.
-6. Open the returned **Demo Mode** localhost URL and click through the real application. The tooltips advance as the real app changes state.
-7. Ask Codex to stop DemoFlow when you are finished.
+4. Choose a proposed product journey if the project has more than one viable starting flow. DemoFlow will not guess which capability you want to present.
+5. Review the source-backed storyboard table—**Step**, **User action**, **Why it matters**, **Evidence**, and **Confidence**—and confirm or adjust it. Every real click is listed separately; typing plus its real submit button is the one compound action.
+6. Review the generated editable flow at `.demoflow/<demo-id>/demo.spec.json`.
+7. Approve Codex's native command prompt for the project's existing development script, or cancel/explain an adjustment there.
+8. Open the returned **Demo Mode** localhost URL and click through the real application. The tooltips advance as the real app changes state.
+9. Ask Codex to stop DemoFlow when you are finished.
 
 DemoFlow never uploads project source code to a DemoFlow service, does not require an account or payment, and does not permanently modify application source. It writes only local `.demoflow/` artifacts and injects the temporary overlay through a second loopback-only localhost URL. It never stages, commits, or pushes Git changes after generating or repairing a demo.
 
@@ -84,7 +86,7 @@ DemoFlow can discover a local **Demo Environment** for a monorepo: the frontend 
 
 All paths must stay inside the repository and every URL must be loopback HTTP. Profiles do not reset a database, manage credentials, modify `.env`, or execute arbitrary commands; real reset adapters remain a future feature.
 
-DemoFlow supports React and Next.js UI that mounts conditionally after an action. When the next target is not in the DOM yet, the overlay waits and retries for up to five seconds before it reports a failed step. A label-based form target resolves to the associated input or textarea, so the walkthrough highlights the control that receives typing and can advance after its real submit action. The tooltip prefers above the real control and uses collision-aware fallback placement, keeping the active button or input visible and clickable. The last real action leads to a clear **Demo complete** panel with Restart and Close controls. Before writing a new flow, Codex ranks up to three likely customer-facing starting actions from the source map. It favors actions such as Preview or Start, deprioritizes Restore/Reset/Seed/Debug controls, and asks the developer to choose when the request has not named a start action.
+DemoFlow supports React and Next.js UI that mounts conditionally after an action. When the next target is not in the DOM yet, the overlay waits and retries for up to five seconds before it reports a failed step. A label-based form target resolves to the associated input or textarea, so the walkthrough highlights the control that receives typing and can advance after its real submit action. The tooltip prefers above the real control and uses collision-aware fallback placement, keeping the active button or input visible and clickable. The last real action leads to a clear **Demo complete** panel with Restart and Close controls. Before writing a new flow, Codex ranks up to three likely customer-facing starting actions from the source map. It favors actions such as Preview or Start, deprioritizes Restore/Reset/Seed/Debug controls, and asks the developer to choose when the request has not named a start action. After a choice, `review_storyboard` returns a human-readable, source-backed table before `demo.spec.json` is written; unclear, ambiguous, or unsupported actions must be repaired in the storyboard rather than silently omitted from the demo.
 
 Before saving a new spec, DemoFlow shows a human-readable storyboard with **Step**, **User action**, **Why it matters**, **Evidence**, and **Confidence**. When the source suggests more than one main customer flow, it presents the choices and waits for the developer to select one. Each independently clickable control becomes its own ordered demo step; only typing in a field followed by that field's real submit button is modeled as one `input-and-click` action. There is no maximum step count, so the complete selected flow remains in one demo.
 
