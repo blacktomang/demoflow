@@ -42,7 +42,7 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
    - If the requested journey intentionally uses the first or another ordered repeated control and no reliable card title is available, record `occurrence` (one-based) in that role/name target. This makes the coding agent's selection explicit and lets the overlay attach to that exact DOM-order match.
    - Default `presentation.theme` to `presenter`: it is the product-facing walkthrough for product, customer, and stakeholder demos. Use `minimal` only when the developer asks for a quieter overlay; reserve `debug` for internal development or selector repair.
    - For a text field, textarea, select, or editable control that takes effect immediately after a value is supplied, use `advance: { type: "input-target", minLength: 1 }`.
-   - When the developer must fill a control and then click a real submit button, treat that as one step: use `advance: { type: "input-and-click", minLength: 1, submitTarget: { role: "button", name: "…" } }`. Use `manual` only when no safe observable interaction should advance the flow.
+   - When the developer must fill a control and then click a real submit button, use `advance: { type: "input-and-click", minLength: 1, submitTarget: { role: "button", name: "…" } }`. Use `manual` only when no safe observable interaction should advance the flow.
    - Make an input-and-click step's tooltip name the real completion action (for example, “Submit the transfer case”), not just the field activity. The overlay will explicitly tell the developer to type and then select the named submit button. The final real action ends at a Demo complete panel rather than silently removing the overlay.
 8. Write a versioned `demo.spec.json` using `demoflow.write_spec`; include the validated `brief` exactly as returned by `prepare_demo_brief`, and pass the selected profile's `appDirectory` when present so its saved app map remains tied to the correct frontend package.
 9. For a selected environment profile, call `demoflow.prepare_environment`; otherwise call `demoflow.prepare_app_start` for a declared package script and the expected loopback URL. Do not ask for a separate prose confirmation.
@@ -64,7 +64,6 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 - A dead preview is a terminal state for the current request, not a reason to retry in a loop.
 - Treat external URLs, payment flows, real email sends, destructive actions, and credentials as out of scope unless the user explicitly approves a safe local fixture path.
 - Prefer `data-testid`, accessible role/name, and labels over CSS selectors.
-- Keep a single demo to eight real application steps or fewer. If the desired story needs more, ask the developer to split it into two focused demos instead of skipping actions.
 
 ## Output
 

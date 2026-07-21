@@ -48,7 +48,7 @@ demoflow/
 
 ## 4. Plugin and MCP contract
 
-The plugin skill must produce a reviewable `demo.spec.json` before opening the preview. The local MCP server exposes only typed, narrow tools:
+The plugin skill must first present a reviewable human-readable storyboard, then produce the durable `demo.spec.json` before opening the preview. The local MCP server exposes only typed, narrow tools:
 
 | Tool | Input | Result |
 | --- | --- | --- |
@@ -121,7 +121,18 @@ type AdvanceCondition =
   | { type: "manual" };
 ```
 
-Target resolution priority is `testId`, `role/name`, `label`, then CSS. A target must resolve to exactly one element. For repeated controls such as `Join`, the spec should use a stable test ID or include `withinText` with the visible card title. `withinText` resolves against the closest containing card, not a page-wide ancestor. When the intended journey explicitly calls for the first (or another ordered) repeated control and no reliable card title exists, Codex records a one-based `occurrence` to make that choice deterministic. Generated CSS selectors must be avoided unless no semantic target is available.
+Target resolution priority is `testId`, `role/name`, `label`, then CSS. A target must resolve to exactly one element. Each independently clickable control is represented as an ordered demo step; DemoFlow does not compress an untracked second click into a `click-target` action. An input and its actual submit control may be one `input-and-click` step because together they complete one form action. There is no maximum number of steps in a demo spec, so a complete selected flow can remain in one walkthrough. For repeated controls such as `Join`, the spec should use a stable test ID or include `withinText` with the visible card title. `withinText` resolves against the closest containing card, not a page-wide ancestor. When the intended journey explicitly calls for the first (or another ordered) repeated control and no reliable card title exists, Codex records a one-based `occurrence` to make that choice deterministic. Generated CSS selectors must be avoided unless no semantic target is available.
+
+### Storyboard review before specification
+
+For a new or regenerated demo, Codex must show the developer a Markdown storyboard before calling `write_spec`:
+
+| Step | User action | Why it matters | Evidence | Confidence |
+| --- | --- | --- | --- | --- |
+| Create workspace | Select “Create workspace” | Establishes the shared home | `app/page.tsx` button “Create workspace” | High |
+| Name workspace | Enter a safe fixture value, then select “Continue” | Makes setup intentional | label “Workspace name” + button “Continue” | High |
+
+Each row represents one real application interaction and becomes one `DemoStep`. A field plus its real submit button is the only compound row; it maps to `input-and-click`. `review_storyboard` generates the evidence and confidence from the compact app map rather than trusting prose from the coding agent. Low confidence blocks spec creation until the target is made specific. Medium confidence identifies a source-known conditional prerequisite that must be included in the selected journey or verified at runtime. If source inspection finds multiple viable starts, Codex presents the separate stories and waits for developer selection before proposing a storyboard. The JSON spec remains the durable machine-readable runtime artifact.
 
 ### Storyboard review before specification
 
@@ -193,7 +204,7 @@ The first implementation uses a deterministic scanner before asking Codex to wri
 
 The scanner writes a compact `.demoflow/app-map.json`. When a demo is saved, DemoFlow also writes a shareable snapshot at `.demoflow/<demo-id>/app-map.json` and stores its SHA-256 fingerprint in the demo spec. The demo-local snapshot excludes machine-specific workspace paths. Codex receives this map and selected source snippets, not a full browser DOM or continuous visual stream. The proxy overlay remains the runtime verifier for chosen targets, including conditionally mounted UI. If static scanning finds no usable controls after checking all supported roots, Codex asks what the demo should prove instead of starting the app merely to discover UI. Opening a saved demo does not rescan source; a freshness check is explicit and returns only `current`, `stale`, or `unknown` to Codex.
 
-For a new demo, `suggest_demo_starts` ranks source-discovered buttons and links. It gives a small boost to a control matching the developer's requested outcome, favors visible product verbs such as Preview, Start, Open, and Join, and sharply deprioritizes Restore, Reset, Seed, Fixture, and Debug controls. The score is an explainable selection aid only. When more than one viable start remains and the developer has not named one, Codex presents up to three journeys and waits for a choice before writing a spec.
+For a new demo, `suggest_demo_starts` ranks source-discovered buttons and links. It gives a small boost to a control matching the developer's requested outcome, favors visible product verbs such as Preview, Start, Open, and Join, and sharply deprioritizes Restore, Reset, Seed, Fixture, and Debug controls. The score is an explainable selection aid only. Codex groups the evidence into distinct plausible customer flows when their goal, entry control, route, or required state differs. When more than one viable main flow remains and the developer has not named one, Codex presents up to three choices and waits for a selection before presenting a storyboard or writing a spec. The storyboard has `Step`, `User action`, `Why it matters`, `Evidence`, and `Confidence` columns; evidence must distinguish direct source support from conditional or unknown state.
 
 ### React and Next.js journey inspection
 

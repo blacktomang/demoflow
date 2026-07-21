@@ -111,6 +111,8 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 - Present an optional, product-facing intro card before the first action, summarizing the release or journey for the audience.
 - Advance based on user interaction or observable UI state.
 - Treat filling a form and clicking its real submit button as one walkthrough action; advance only after the meaningful value and actual submit click.
+- Model each independently clickable control as its own ordered walkthrough step; do not hide a second click inside a generic click step.
+- Do not impose a maximum number of demo steps; preserve the complete selected flow in one spec.
 - Wait briefly for the next step to mount after a real interaction before treating a React/Next.js conditional screen as a broken target.
 - Write a portable `demo.spec.json` file.
 - Save local branch and commit provenance in a branch-aware demo spec so a later viewer knows which change set it describes.
@@ -217,14 +219,16 @@ A preview is a one-shot handoff. Once its local URL is returned, the developer u
 
 ## 11. Demo planning and execution
 
-Codex produces a JSON specification before the live preview opens. Each step has:
+Before creating the durable JSON specification, Codex presents a human-readable storyboard with these columns: `Step`, `User action`, `Why it matters`, `Evidence`, and `Confidence`. It states source-backed controls, prerequisites, transitions, and any fixture assumptions, then waits for the developer to confirm or adjust the selected flow. If more than one customer-facing main flow is plausible, it presents the choices before it authors a storyboard.
+
+After confirmation, Codex produces a JSON specification before the live preview opens. Each step has:
 
 - user-facing intent
 - action type and target description
 - safe input values, if any
 - expected observable result
 
-Every step must identify one concrete element. DemoFlow prefers stable test IDs; when a repeated control has the same visible name, the spec also records the surrounding card title so the overlay can attach to the intended action. If the requested flow explicitly means the first repeated control and no stable card title exists, Codex records its one-based occurrence so that selection is visible and deterministic.
+Every step must identify one concrete element. Every independently clickable real action gets its own ordered spec step, so a sequence such as “open menu, then choose option” is not silently compressed into one click. The sole compound exception is filling a field followed by that field's real submit control, which is represented with `input-and-click`. A selected flow has no maximum step count: its complete set of real interactions remains in one spec. DemoFlow prefers stable test IDs; when a repeated control has the same visible name, the spec also records the surrounding card title so the overlay can attach to the intended action. If the requested flow explicitly means the first repeated control and no stable card title exists, Codex records its one-based occurrence so that selection is visible and deterministic.
 - tooltip title and explanation
 - risk level
 

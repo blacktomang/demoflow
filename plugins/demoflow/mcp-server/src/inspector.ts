@@ -154,6 +154,10 @@ function staticAttribute(attribute: ts.JsxAttribute | undefined): string | undef
 function jsxNames(node: ts.JsxElement | ts.JsxSelfClosingElement): string[] {
   const names: string[] = [];
   const visit = (current: ts.Node) => {
+    // Attribute values can contain implementation details such as state values
+    // in an inline onClick handler. They are not part of a control's accessible
+    // name; static aria-label values are handled explicitly by the caller.
+    if (ts.isJsxAttribute(current)) return;
     if (ts.isJsxText(current)) {
       const value = current.getText().replace(/\s+/g, " ").trim();
       if (value.length >= 2 && value.length <= 80) names.push(value);
