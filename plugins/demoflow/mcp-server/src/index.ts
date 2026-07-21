@@ -6,15 +6,21 @@ import { writeDemoSpec, DemoSpecSchema, listDemoSpecs, readDemoSpec } from "./sp
 import { prepareAppStart } from "./start-command.js";
 import { createPreview, getPreview, stopPreview } from "./proxy.js";
 import { inspectBranchChanges } from "./branch.js";
-import { suggestDemoStarts } from "./suggestions.js";
+import { blockedDemoControls, suggestDemoStarts } from "./suggestions.js";
+import { checkDemoEnvironment, discoverDemoEnvironments, prepareDemoEnvironment } from "./environment.js";
+import path from "node:path";
 
 const server = new McpServer({ name: "demoflow", version: "0.1.0" });
 const lastInspectedAppMaps = new Map<string, AppMap>();
 const lastBranchComparisons = new Map<string, Awaited<ReturnType<typeof inspectBranchChanges>>>();
 
-async function inspectAndRemember(workspacePath: string): Promise<AppMap> {
-  const appMap = await inspectProject(workspacePath);
-  lastInspectedAppMaps.set(workspacePath, appMap);
+function appMapKey(workspacePath: string, appDirectory?: string): string {
+  return `${path.resolve(workspacePath)}\u0000${appDirectory ?? "."}`;
+}
+
+async function inspectAndRemember(workspacePath: string, appDirectory?: string): Promise<AppMap> {
+  const appMap = await inspectProject(workspacePath, { appDirectory });
+  lastInspectedAppMaps.set(appMapKey(workspacePath, appDirectory), appMap);
   return appMap;
 }
 
@@ -32,28 +38,28 @@ server.tool(
   async ({ workspacePath, demoId }) => {
     const spec = await readDemoSpec(workspacePath, demoId);
     if (!spec.metadata?.appFingerprint) return { content: [{ type: "text", text: JSON.stringify({ demoId, status: "unknown", reason: "This demo was saved before fingerprints were added." }, null, 2) }] };
-    const appMap = await inspectAndRemember(workspacePath);
+    const appMap = await inspectAndRemember(workspacePath, spec.metadata?.appDirectory);
     return { content: [{ type: "text", text: JSON.stringify({ demoId, status: spec.metadata.appFingerprint === appMap.fingerprint ? "current" : "stale", savedFingerprint: spec.metadata.appFingerprint, currentFingerprint: appMap.fingerprint }, null, 2) }] };
   },
 );
 
 server.tool(
   "inspect_project",
-  "Create a compact local app map with scripts, routes, test IDs, and likely UI labels.",
-  { workspacePath: z.string().describe("Absolute path to the local project workspace") },
-  async ({ workspacePath }) => {
-    const appMap = await inspectAndRemember(workspacePath);
+  "Create a compact local app map with scripts, routes, test IDs, and likely UI labels. appDirectory supports a frontend package inside a monorepo.",
+  { workspacePath: z.string().describe("Absolute path to the local project workspace"), appDirectory: z.string().optional().describe("Optional frontend package directory relative to workspacePath, for example apps/web") },
+  async ({ workspacePath, appDirectory }) => {
+    const appMap = await inspectAndRemember(workspacePath, appDirectory);
     return { content: [{ type: "text", text: JSON.stringify(appMap, null, 2) }] };
   },
 );
 
 server.tool(
   "suggest_demo_starts",
-  "Rank up to three likely customer-facing start controls from the inspected local app map. Restore, reset, seed, fixture, and developer controls are deprioritized. Use this to propose choices; it does not create a demo spec.",
-  { workspacePath: z.string(), intent: z.string().optional().describe("The developer's requested demo outcome, used only to rank source-discovered controls") },
-  async ({ workspacePath, intent }) => {
-    const appMap = lastInspectedAppMaps.get(workspacePath) ?? await inspectAndRemember(workspacePath);
-    return { content: [{ type: "text", text: JSON.stringify({ intent: intent ?? "", candidates: suggestDemoStarts(appMap, intent) }, null, 2) }] };
+  "Rank up to three likely customer-facing clean-start controls from the inspected local app map. Controls with known positive state prerequisites are returned separately as blocked controls, never proposed as standalone starts. This tool does not create a demo spec.",
+  { workspacePath: z.string(), appDirectory: z.string().optional(), intent: z.string().optional().describe("The developer's requested demo outcome, used only to rank source-discovered controls") },
+  async ({ workspacePath, appDirectory, intent }) => {
+    const appMap = lastInspectedAppMaps.get(appMapKey(workspacePath, appDirectory)) ?? await inspectAndRemember(workspacePath, appDirectory);
+    return { content: [{ type: "text", text: JSON.stringify({ intent: intent ?? "", candidates: suggestDemoStarts(appMap, intent), blockedControls: blockedDemoControls(appMap) }, null, 2) }] };
   },
 );
 
@@ -66,6 +72,33 @@ server.tool(
     lastBranchComparisons.set(workspacePath, comparison);
     return { content: [{ type: "text", text: JSON.stringify(comparison, null, 2) }] };
   },
+);
+
+server.tool(
+  "list_environments",
+  "Discover declared or safely inferred local Demo Environment profiles. These describe a frontend package, one declared start script, and loopback readiness checks; this tool never starts a process.",
+  { workspacePath: z.string().describe("Absolute repository workspace path") },
+  async ({ workspacePath }) => ({ content: [{ type: "text", text: JSON.stringify({ profiles: await discoverDemoEnvironments(workspacePath) }, null, 2) }] }),
+);
+
+server.tool(
+  "prepare_environment",
+  "Validate a Demo Environment profile and return the one declared local command that Codex may ask to run. This tool never starts a process.",
+  { workspacePath: z.string(), profileId: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/) },
+  async ({ workspacePath, profileId }) => {
+    const environment = await prepareDemoEnvironment(workspacePath, profileId);
+    return { content: [{ type: "text", text: JSON.stringify({
+      ...environment,
+      instruction: "Run start.displayCommand with Codex's terminal tool in start.workspacePath. Codex must show its native command approval. After it starts, call check_environment and create_preview only when every required service is ready.",
+    }, null, 2) }] };
+  },
+);
+
+server.tool(
+  "check_environment",
+  "Check whether every declared loopback frontend or API readiness URL in a Demo Environment profile is reachable. This is read-only and never starts, stops, or resets services.",
+  { workspacePath: z.string(), profileId: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/) },
+  async ({ workspacePath, profileId }) => ({ content: [{ type: "text", text: JSON.stringify(await checkDemoEnvironment(workspacePath, profileId), null, 2) }] }),
 );
 
 server.tool(
@@ -130,8 +163,8 @@ server.tool(
 server.tool(
   "write_spec",
   "Validate and save a DemoFlow demo spec under .demoflow/<id>/demo.spec.json.",
-  { workspacePath: z.string(), spec: DemoSpecSchema },
-  async ({ workspacePath, spec }) => {
+  { workspacePath: z.string(), appDirectory: z.string().optional(), spec: DemoSpecSchema },
+  async ({ workspacePath, appDirectory, spec }) => {
     const branch = lastBranchComparisons.get(workspacePath);
     const specWithProvenance = spec.provenance || !branch ? spec : {
       ...spec,
@@ -142,7 +175,7 @@ server.tool(
         currentCommit: branch.currentCommit,
       },
     };
-    const path = await writeDemoSpec(workspacePath, specWithProvenance, lastInspectedAppMaps.get(workspacePath) ?? await inspectAndRemember(workspacePath));
+    const path = await writeDemoSpec(workspacePath, specWithProvenance, lastInspectedAppMaps.get(appMapKey(workspacePath, appDirectory)) ?? await inspectAndRemember(workspacePath, appDirectory));
     return { content: [{ type: "text", text: `Saved DemoFlow spec: ${path}` }] };
   },
 );

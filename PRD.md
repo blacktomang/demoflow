@@ -197,11 +197,13 @@ The proxy does not infer product intent from the page alone. It serves the live 
 
 | Tool | Purpose |
 | --- | --- |
-| `demoflow.inspect_project` | Return framework, scripts, routes, likely entry points, and existing E2E test hints |
-| `demoflow.suggest_demo_starts` | Rank up to three likely customer-facing source controls for a stated demo outcome; it proposes choices but never writes a spec |
+| `demoflow.inspect_project` | Return framework, scripts, routes, UI controls, and bounded React/Next render prerequisites/local transitions |
+| `demoflow.list_environments` | Discover a declared or safely inferred full-stack environment: frontend package, one declared start script, and loopback API readiness checks |
+| `demoflow.suggest_demo_starts` | Rank up to three likely clean-start controls for a stated demo outcome and report blocked controls with known prerequisites; it never writes a spec |
 | `demoflow.list_demos` | List saved local demo specs without scanning project source |
 | `demoflow.check_demo_freshness` | On-demand comparison of a saved demo fingerprint with the current compact app map |
 | `demoflow.prepare_app_start` | Validate a declared package script and return its exact command, working directory, and likely local URL without executing it |
+| `demoflow.prepare_environment` / `demoflow.check_environment` | Validate one declared environment start script, then verify its local frontend and API services before previewing |
 | `demoflow.create_preview` | Start a local reverse proxy that injects the DemoFlow overlay |
 | `demoflow.write_spec` | Save the reviewed structured demo specification |
 | `demoflow.open_preview` | Return the preview URL for the user to open in their browser |

@@ -58,7 +58,34 @@ DemoFlow runs its bundled runtime with the developer's own Node.js 20+ installat
 
 DemoFlow validates that the target app is reachable before it creates a preview. Use the exact `Local:` URL printed by the app's dev server; `localhost` and `127.0.0.1` are both loopback addresses but can be served differently by local tooling.
 
+### Full-stack and monorepo apps
+
+DemoFlow can discover a local **Demo Environment** for a monorepo: the frontend package to scan, one existing root/package script to start, and loopback readiness URLs for required services such as an API. It does not start services itself; Codex shows its normal approval prompt for the single declared script, then DemoFlow waits for every declared service before it creates the browser preview. A project can make this deterministic with `.demoflow/environment.json`:
+
+```json
+{
+  "version": 1,
+  "profiles": {
+    "local-full-stack": {
+      "label": "Local web and API",
+      "appDirectory": "apps/web",
+      "commandDirectory": ".",
+      "start": { "script": "dev" },
+      "appUrl": "http://localhost:5173",
+      "readiness": [
+        { "name": "Web app", "url": "http://localhost:5173" },
+        { "name": "API", "url": "http://localhost:3001/health" }
+      ]
+    }
+  }
+}
+```
+
+All paths must stay inside the repository and every URL must be loopback HTTP. Profiles do not reset a database, manage credentials, modify `.env`, or execute arbitrary commands; real reset adapters remain a future feature.
+
 DemoFlow supports React and Next.js UI that mounts conditionally after an action. When the next target is not in the DOM yet, the overlay waits and retries for up to five seconds before it reports a failed step. A label-based form target resolves to the associated input or textarea, so the walkthrough highlights the control that receives typing and can advance after its real submit action. The tooltip prefers above the real control and uses collision-aware fallback placement, keeping the active button or input visible and clickable. The last real action leads to a clear **Demo complete** panel with Restart and Close controls. Before writing a new flow, Codex ranks up to three likely customer-facing starting actions from the source map. It favors actions such as Preview or Start, deprioritizes Restore/Reset/Seed/Debug controls, and asks the developer to choose when the request has not named a start action.
+
+For React and Next.js, the app map also records bounded JSX render prerequisites and nearby local state effects. A control such as **Save my protocol** can therefore be marked as requiring an active challenge rather than proposed as a clean-start demo. DemoFlow does not simulate APIs or databases: when source cannot prove how a required state is reached, Codex must offer a fixture-state choice instead of inventing a path.
 
 **Restart** hard-reloads the configured start page when it is already open. This resets ordinary in-memory React state, such as TeachBack's current lesson step. It intentionally does not clear accounts, server state, or browser-persisted data; an app that needs those must provide a clearly identified local fixture/reset action.
 

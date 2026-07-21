@@ -47,6 +47,7 @@ export const DemoSpecSchema = z.object({
   metadata: z.object({
     appFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
     savedAt: z.string().datetime(),
+    appDirectory: z.string().min(1).optional(),
   }).optional(),
   steps: z.array(z.object({
     id: z.string().min(1),
@@ -87,7 +88,7 @@ export async function writeDemoSpec(workspacePath: string, spec: DemoSpec, appMa
   const allowedRoot = path.resolve(workspacePath, ".demoflow") + path.sep;
   if (!outputPath.startsWith(allowedRoot)) throw new Error("Demo spec path must stay inside .demoflow");
   await mkdir(path.dirname(outputPath), { recursive: true });
-  const savedSpec: DemoSpec = { ...spec, metadata: { appFingerprint: appMap.fingerprint, savedAt: new Date().toISOString() } };
+  const savedSpec: DemoSpec = { ...spec, metadata: { appFingerprint: appMap.fingerprint, savedAt: new Date().toISOString(), appDirectory: appMap.appDirectory } };
   await writeFile(outputPath, JSON.stringify(savedSpec, null, 2) + "\n", "utf8");
   const { workspacePath: _workspacePath, ...shareableAppMap } = appMap;
   await writeFile(path.join(path.dirname(outputPath), "app-map.json"), JSON.stringify(shareableAppMap, null, 2) + "\n", "utf8");

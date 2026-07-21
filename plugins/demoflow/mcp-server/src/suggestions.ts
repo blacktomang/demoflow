@@ -8,6 +8,8 @@ export type DemoStartSuggestion = {
   rationale: string[];
 };
 
+export type BlockedControl = Pick<UiControl, "kind" | "name" | "source" | "requires" | "confidence">;
+
 const primaryAction = /\b(preview|start|begin|continue|open|view|show|create|join|approve|submit|save|complete|try)\b/i;
 const setupAction = /\b(restore|reset|seed|hydrate|fixture|debug|developer|devtools|migration)\b/i;
 
@@ -24,6 +26,10 @@ export function suggestDemoStarts(appMap: AppMap, intent = ""): DemoStartSuggest
   const terms = intentTerms(intent);
   const candidates = appMap.controls
     .filter((control): control is UiControl & { kind: "button" | "link" } => control.kind === "button" || control.kind === "link")
+    // A clean-start journey cannot begin at a control whose render guard
+    // requires an already-present state such as an active challenge or saved
+    // protocol. Keep those as explicit dependency evidence for Codex instead.
+    .filter((control) => !control.requires?.some((requirement) => requirement.expected))
     .map((control) => {
       const name = control.name.toLocaleLowerCase();
       const rationale: string[] = [];
@@ -61,4 +67,12 @@ export function suggestDemoStarts(appMap: AppMap, intent = ""): DemoStartSuggest
       return true;
     })
     .slice(0, 3);
+}
+
+export function blockedDemoControls(appMap: AppMap): BlockedControl[] {
+  return appMap.controls
+    .filter((control) => (control.kind === "button" || control.kind === "link") && control.requires?.some((requirement) => requirement.expected))
+    .map(({ kind, name, source, requires, confidence }) => ({ kind, name, source, requires, confidence }))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.source.localeCompare(b.source))
+    .slice(0, 20);
 }

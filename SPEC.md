@@ -54,16 +54,23 @@ The plugin skill must produce a reviewable `demo.spec.json` before opening the p
 | --- | --- | --- |
 | `demoflow.list_demos` | workspace path | saved demo titles, goals, steps, and saved fingerprints without a source scan |
 | `demoflow.check_demo_freshness` | workspace path + demo ID | `current`, `stale`, or `unknown` after an on-demand compact scan |
-| `demoflow.inspect_project` | workspace path | framework, scripts, route, test-ID, and source-relative UI-control summary |
-| `demoflow.suggest_demo_starts` | workspace path + optional requested outcome | up to three ranked customer-facing source controls; a choice aid, not a generated spec |
+| `demoflow.list_environments` | workspace path | declared or safely inferred frontend package, declared startup script, app URL, and loopback readiness URLs |
+| `demoflow.inspect_project` | workspace path + optional app directory | framework, scripts, route, test-ID, source-relative UI-control summary, and bounded React/Next render prerequisites/transitions |
+| `demoflow.suggest_demo_starts` | workspace path + optional requested outcome | up to three ranked clean-start controls plus separately reported blocked controls and their known prerequisites |
 | `demoflow.inspect_branch_changes` | workspace path + optional base branch | local base/current branches, commit SHAs, and changed-file summary for a branch-aware demo |
 | `demoflow.write_spec` | demo ID + validated spec | saved path, demo-local app-map snapshot, and fingerprint |
 | `demoflow.prepare_app_start` | declared package script | exact command, working directory, and likely local base URL; no process is started |
+| `demoflow.prepare_environment` | workspace path + environment profile ID | one validated declared command plus frontend/API readiness contract; no process is started |
+| `demoflow.check_environment` | workspace path + environment profile ID | read-only loopback readiness result for every required service |
 | `demoflow.create_preview` | base URL + spec path | proxy preview URL |
 | `demoflow.open_preview` | preview ID | URL and current status |
 | `demoflow.stop` | preview ID | proxy shutdown confirmation |
 
 No generic shell-command tool is exposed to the model. The MCP server never executes a target-project command. After `prepare_app_start`, Codex runs the returned command in its own terminal session so its native approve / deny / explain prompt remains the security boundary.
+
+### Demo Environments
+
+For full-stack and monorepo projects, `.demoflow/environment.json` can declare an `appDirectory` to inspect, a `commandDirectory` containing one existing package script, an application URL, and loopback readiness services such as an API health endpoint. When no file exists, DemoFlow can safely infer one candidate only when a workspace has exactly one supported frontend package and a root `dev` script. Inference is a proposal, not permission to run anything. `prepare_environment` validates only the declared package script; `check_environment` only issues bounded loopback fetches. Environment profiles do not include reset, database, credential, or arbitrary-command behavior.
 
 ### Preview lifecycle
 
@@ -169,6 +176,10 @@ The first implementation uses a deterministic scanner before asking Codex to wri
 The scanner writes a compact `.demoflow/app-map.json`. When a demo is saved, DemoFlow also writes a shareable snapshot at `.demoflow/<demo-id>/app-map.json` and stores its SHA-256 fingerprint in the demo spec. The demo-local snapshot excludes machine-specific workspace paths. Codex receives this map and selected source snippets, not a full browser DOM or continuous visual stream. The proxy overlay remains the runtime verifier for chosen targets, including conditionally mounted UI. If static scanning finds no usable controls after checking all supported roots, Codex asks what the demo should prove instead of starting the app merely to discover UI. Opening a saved demo does not rescan source; a freshness check is explicit and returns only `current`, `stale`, or `unknown` to Codex.
 
 For a new demo, `suggest_demo_starts` ranks source-discovered buttons and links. It gives a small boost to a control matching the developer's requested outcome, favors visible product verbs such as Preview, Start, Open, and Join, and sharply deprioritizes Restore, Reset, Seed, Fixture, and Debug controls. The score is an explainable selection aid only. When more than one viable start remains and the developer has not named one, Codex presents up to three journeys and waits for a choice before writing a spec.
+
+### React and Next.js journey inspection
+
+The inspector parses supported TSX/JSX files locally and records a bounded dependency layer beside the UI inventory. It extracts enclosing `&&` and ternary render guards, carries a parent component's guard into controls rendered by that child component, and records nearby `useState` setter, navigation, and request effects for local event handlers. A control may therefore contain `requires` facts such as `session.activeChallenge: true` and a confidence level. A control with a known positive requirement is returned as `blockedControls`, never as a clean-start suggestion. The analysis is deliberately not a full program or backend simulation: dynamic imports, arbitrary state libraries, API/database response values, authentication, and feature flags remain unknown and require a fixture-state choice or runtime verification.
 
 ### Branch-aware inspection
 

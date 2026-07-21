@@ -30,6 +30,8 @@
 - [x] Collect route strings and candidate visible button/label text.
 - [x] Scan root Next.js `app/`, `pages/`, and `components/` as well as `src/`, without requiring the app to run.
 - [x] Return bounded source-relative button, link, label, static `aria-label`, and test-ID summaries.
+- [x] Parse bounded React/Next JSX render guards and carry parent-component prerequisites into child controls.
+- [x] Exclude controls with known positive state prerequisites from clean-start demo suggestions and report them separately.
 - [x] Rank source-discovered product starts and require a developer choice when a request leaves more than one viable journey.
 - [x] Derive Next.js App Router paths from `app/**/page.*`.
 - [x] Write a compact `.demoflow/app-map.json`.
@@ -66,6 +68,14 @@
 - [ ] Verify deny, approve, and adjustment paths in the Codex command-approval UI.
 
 **Done when:** the developer sees Codex's native approval UI before the target development script starts, and DemoFlow can create and stop a preview without owning that app process.
+
+### 5.1 Full-stack Demo Environments
+
+- [x] Discover a declared or safely inferred frontend package plus one root/package startup script for a monorepo.
+- [x] Validate loopback-only frontend/API readiness endpoints before creating a preview.
+- [x] Keep all process execution in Codex's native approval flow; never infer extra backend commands or modify environment files.
+- [x] Cover a RawHabit-style Bun client + Express API workspace in tests.
+- [ ] Add app-owned deterministic reset adapters separately; environment profiles only describe startup and readiness.
 
 ### 6. Local preview proxy
 

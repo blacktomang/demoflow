@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { inspectProject } from "../dist/inspector.js";
+import { blockedDemoControls, suggestDemoStarts } from "../dist/suggestions.js";
 
 test("discovers Next app-router controls from source without a running app", async () => {
   const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-next-"));
@@ -43,4 +44,37 @@ test("keeps src-based React control discovery", async () => {
   assert.deepEqual(appMap.testIds, ["save"]);
   assert.ok(appMap.controls.some((control) => control.kind === "test-id" && control.name === "save"));
   assert.ok(appMap.controls.some((control) => control.kind === "button" && control.name === "Save"));
+});
+
+test("carries parent React render guards into child controls and excludes blocked starts", async () => {
+  const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-react-state-"));
+  await mkdir(path.join(workspacePath, "src", "components"), { recursive: true });
+  await writeFile(path.join(workspacePath, "package.json"), JSON.stringify({ dependencies: { react: "19", vite: "7" } }));
+  await writeFile(path.join(workspacePath, "src", "App.tsx"), `
+    import { TemplatePicker } from "./components/TemplatePicker";
+    import { HabitProtocolSetup } from "./components/HabitProtocolSetup";
+    import { ChallengeDashboard } from "./components/ChallengeDashboard";
+    export function App() {
+      const [session, setSession] = useState();
+      const [editingProtocol, setEditingProtocol] = useState(false);
+      function start() { setSession({ activeChallenge: true }); }
+      return <main>
+        {!session?.activeChallenge && <TemplatePicker onStart={start} />}
+        {session?.activeChallenge && (!session.habitProtocol || editingProtocol ? <HabitProtocolSetup /> : <ChallengeDashboard />)}
+      </main>;
+    }
+  `);
+  await writeFile(path.join(workspacePath, "src", "components", "TemplatePicker.tsx"), `export function TemplatePicker({ onStart }) { return <button onClick={onStart}>Join this habit</button>; }`);
+  await writeFile(path.join(workspacePath, "src", "components", "HabitProtocolSetup.tsx"), `export function HabitProtocolSetup() { return <button>Save my protocol</button>; }`);
+  await writeFile(path.join(workspacePath, "src", "components", "ChallengeDashboard.tsx"), `export function ChallengeDashboard() { return <button>Edit protocol</button>; }`);
+
+  const appMap = await inspectProject(workspacePath);
+  const save = appMap.controls.find((control) => control.name === "Save my protocol");
+  const edit = appMap.controls.find((control) => control.name === "Edit protocol");
+  assert.ok(save?.requires?.some((fact) => fact.expression === "session?.activeChallenge" && fact.expected));
+  assert.ok(edit?.requires?.some((fact) => fact.expression === "session?.activeChallenge" && fact.expected));
+  assert.ok(edit?.requires?.some((fact) => fact.expression === "session.habitProtocol" && fact.expected));
+  assert.ok(suggestDemoStarts(appMap, "set protocol").some((candidate) => candidate.control.name === "Join this habit"));
+  assert.ok(!suggestDemoStarts(appMap, "set protocol").some((candidate) => candidate.control.name === "Save my protocol"));
+  assert.ok(blockedDemoControls(appMap).some((control) => control.name === "Save my protocol"));
 });
