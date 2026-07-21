@@ -198,4 +198,7 @@ server.tool(
   },
 );
 
-await server.connect(new StdioServerTransport());
+server.connect(new StdioServerTransport()).catch((error: unknown) => {
+  console.error("DemoFlow MCP server failed to start:", error);
+  process.exitCode = 1;
+});

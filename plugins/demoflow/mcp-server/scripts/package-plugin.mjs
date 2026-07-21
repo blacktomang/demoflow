@@ -8,7 +8,7 @@ await build({
   entryPoints: [path.join(root, "mcp-server", "src", "index.ts")],
   outfile: path.join(root, "runtime", "index.js"),
   bundle: true,
-  format: "esm",
+  format: "cjs",
   platform: "node",
   target: "node20",
   sourcemap: false,

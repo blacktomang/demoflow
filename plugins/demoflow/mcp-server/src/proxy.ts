@@ -2,7 +2,6 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { DemoSpecSchema, type DemoSpec } from "./spec.js";
 
@@ -12,8 +11,14 @@ type PreviewDiagnostic = { kind: "app-alert" | "window-error" | "unhandled-rejec
 type PreviewStatus = { missingTargets: string[]; failures: PreviewFailure[]; diagnostics: PreviewDiagnostic[] };
 type Preview = { id: string; url: string; baseUrl: string; workspacePath: string; demoId: string; server: ReturnType<typeof createServer>; status: PreviewStatus };
 const previews = new Map<string, Preview>();
-const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
-const overlayDirectoryCandidate = [path.resolve(moduleDirectory, "../overlay"), path.resolve(moduleDirectory, "../../overlay")]
+// The bundled runtime is intentionally CommonJS so TypeScript's Node-only
+// dependencies can load. Its MCP configuration starts it from the plugin root.
+// Include the source-package location too for local development and tests.
+const overlayDirectoryCandidate = [
+  path.resolve(process.cwd(), "overlay"),
+  path.resolve(process.cwd(), "../overlay"),
+  path.resolve(process.cwd(), "../../overlay"),
+]
   .find((candidate) => existsSync(path.join(candidate, "overlay.js")));
 if (!overlayDirectoryCandidate) throw new Error("DemoFlow overlay bundle is missing");
 const overlayDirectory: string = overlayDirectoryCandidate;
