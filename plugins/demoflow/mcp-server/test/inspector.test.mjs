@@ -78,3 +78,28 @@ test("carries parent React render guards into child controls and excludes blocke
   assert.ok(!suggestDemoStarts(appMap, "set protocol").some((candidate) => candidate.control.name === "Save my protocol"));
   assert.ok(blockedDemoControls(appMap).some((control) => control.name === "Save my protocol"));
 });
+
+test("surfaces evidence for distinct conditional customer flows", async () => {
+  const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-flow-inventory-"));
+  await mkdir(path.join(workspacePath, "src"));
+  await writeFile(path.join(workspacePath, "package.json"), JSON.stringify({ dependencies: { react: "19", vite: "7" } }));
+  await writeFile(path.join(workspacePath, "src", "App.tsx"), `
+    export function App() {
+      const [mode, setMode] = useState();
+      return <main>
+        <button onClick={() => setMode("create")}>Create a workspace</button>
+        <button onClick={() => setMode("import")}>Import a workspace</button>
+        {mode === "create" && <button>Continue with a blank workspace</button>}
+        {mode === "import" && <button>Choose an export file</button>}
+      </main>;
+    }
+  `);
+
+  const appMap = await inspectProject(workspacePath);
+  const createContinuation = appMap.controls.find((control) => control.name === "Continue with a blank workspace");
+  const importContinuation = appMap.controls.find((control) => control.name === "Choose an export file");
+
+  assert.ok(createContinuation?.requires?.some((fact) => fact.expression === 'mode === "create"' && fact.expected));
+  assert.ok(importContinuation?.requires?.some((fact) => fact.expression === 'mode === "import"' && fact.expected));
+  assert.deepEqual(suggestDemoStarts(appMap).map((candidate) => candidate.control.name), ["Create a workspace", "Import a workspace"]);
+});

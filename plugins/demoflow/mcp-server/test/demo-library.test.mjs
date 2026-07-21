@@ -3,8 +3,9 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { fingerprintAppMap } from "../dist/inspector.js";
-import { listDemoSpecs, readDemoSpec, writeDemoSpec } from "../dist/spec.js";
+import { DemoSpecSchema, listDemoSpecs, readDemoSpec, writeDemoSpec } from "../dist/spec.js";
 
 const appMapData = {
   frameworkHints: ["react", "vite"],
@@ -91,14 +92,61 @@ test("accepts a product-facing intro before the walkthrough", async () => {
   assert.equal(spec.provenance?.baseBranch, "main");
 });
 
-test("persists the developer-directed Demo Brief with the saved flow", async () => {
-  const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-brief-"));
-  const appMap = { workspacePath, frameworkHints: [], scripts: [], routes: [], testIds: [], labels: [], controls: [], fingerprint: "a".repeat(64) };
+test("persists each independently clickable action as an ordered step", async () => {
+  const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-clicks-"));
+  const appMap = { workspacePath, ...appMapData, fingerprint: fingerprintAppMap(appMapData) };
   await writeDemoSpec(workspacePath, {
-    version: 1, id: "briefed-demo", title: "Reviewer flow", goal: "Show the invite experience", startPath: "/",
-    brief: { showing: "new-feature", audience: "product-stakeholder", outcome: "A reviewer understands how a user invites a teammate." },
-    steps: [{ id: "invite", target: { role: "button", name: "Invite teammate" }, tooltip: { title: "Invite", body: "Invite a teammate." }, advance: { type: "click-target" } }],
+    version: 1,
+    id: "three-click-flow",
+    title: "Three click flow",
+    goal: "Perform each required product action",
+    startPath: "/",
+    steps: [
+      { id: "open", target: { testId: "open" }, tooltip: { title: "Open", body: "Open the workflow." }, advance: { type: "click-target" } },
+      { id: "choose", target: { testId: "choose" }, tooltip: { title: "Choose", body: "Choose the intended option." }, advance: { type: "click-target" } },
+      { id: "confirm", target: { testId: "confirm" }, tooltip: { title: "Confirm", body: "Confirm the change." }, advance: { type: "click-target" } },
+    ],
   }, appMap);
-  const spec = await readDemoSpec(workspacePath, "briefed-demo");
-  assert.deepEqual(spec.brief, { showing: "new-feature", audience: "product-stakeholder", outcome: "A reviewer understands how a user invites a teammate." });
+
+  const spec = await readDemoSpec(workspacePath, "three-click-flow");
+  assert.deepEqual(spec.steps.map((step) => step.id), ["open", "choose", "confirm"]);
+  assert.ok(spec.steps.every((step) => step.advance.type === "click-target"));
+});
+
+test("allows a complete walkthrough with more than five ordered steps", async () => {
+  const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-long-flow-"));
+  const appMap = { workspacePath, ...appMapData, fingerprint: fingerprintAppMap(appMapData) };
+  const steps = ["open", "choose", "configure", "explain", "transfer", "review"].map((id) => ({
+    id,
+    target: { testId: id },
+    tooltip: { title: id, body: `Complete ${id}.` },
+    advance: { type: "click-target" },
+  }));
+  await writeDemoSpec(workspacePath, {
+    version: 1,
+    id: "complete-loop",
+    title: "Complete loop",
+    goal: "Complete all six real actions",
+    startPath: "/",
+    steps,
+  }, appMap);
+
+  assert.equal((await readDemoSpec(workspacePath, "complete-loop")).steps.length, 6);
+});
+
+test("models required sample-app forms as input plus their real submit click", async () => {
+  const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+  const fixturePath = path.resolve(testDirectory, "../../sample-app/fixtures/onboarding.demo.spec.json");
+  const fixture = DemoSpecSchema.parse(JSON.parse(await readFile(fixturePath, "utf8")));
+
+  const expected = [
+    ["save-workspace", "Workspace name", "save-workspace", 3],
+    ["create-project", "Project name", "create-project", 3],
+    ["invite-teammate", "Teammate email", "invite-teammate", 5],
+  ];
+  for (const [id, label, submitTestId, minLength] of expected) {
+    const step = fixture.steps.find((candidate) => candidate.id === id);
+    assert.deepEqual(step?.target, { label });
+    assert.deepEqual(step?.advance, { type: "input-and-click", minLength, submitTarget: { testId: submitTestId } });
+  }
 });

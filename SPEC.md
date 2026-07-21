@@ -9,7 +9,7 @@ It deliberately excludes Playwright, autonomous clicking, screenshots, and video
 ## 2. End-to-end interaction
 
 1. The developer opens a repository in Codex and asks for a demo flow.
-2. For a new demo, the DemoFlow skill inspects local source files and writes `.demoflow/<demo-id>/demo.spec.json` plus a compact app-map snapshot. A saved demo can run directly without this inspection.
+2. For a new demo, the DemoFlow skill inspects local source files, presents a human-readable storyboard for the developer to review, then writes `.demoflow/<demo-id>/demo.spec.json` plus a compact app-map snapshot after the developer accepts the selected flow. A saved demo can run directly without this inspection.
 3. The MCP server validates a declared project development script and returns its exact command, working directory, and likely loopback URL without executing it.
 4. Codex runs that command in its terminal session. Codex displays its native approval prompt, so the developer can approve, deny, or give feedback before the app starts.
 5. Once the app is running, the MCP server starts a DemoFlow proxy on another local port.
@@ -48,7 +48,7 @@ demoflow/
 
 ## 4. Plugin and MCP contract
 
-The plugin skill must produce a reviewable `demo.spec.json` before opening the preview. The local MCP server exposes only typed, narrow tools:
+The plugin skill must first present a reviewable human-readable storyboard, then produce the durable `demo.spec.json` before opening the preview. The local MCP server exposes only typed, narrow tools:
 
 | Tool | Input | Result |
 | --- | --- | --- |
@@ -120,7 +120,7 @@ type AdvanceCondition =
   | { type: "manual" };
 ```
 
-Target resolution priority is `testId`, `role/name`, `label`, then CSS. A target must resolve to exactly one element. For repeated controls such as `Join`, the spec should use a stable test ID or include `withinText` with the visible card title. `withinText` resolves against the closest containing card, not a page-wide ancestor. When the intended journey explicitly calls for the first (or another ordered) repeated control and no reliable card title exists, Codex records a one-based `occurrence` to make that choice deterministic. Generated CSS selectors must be avoided unless no semantic target is available.
+Target resolution priority is `testId`, `role/name`, `label`, then CSS. A target must resolve to exactly one element. Each independently clickable control is represented as an ordered demo step; DemoFlow does not compress an untracked second click into a `click-target` action. An input and its actual submit control may be one `input-and-click` step because together they complete one form action. There is no maximum number of steps in a demo spec, so a complete selected flow can remain in one walkthrough. For repeated controls such as `Join`, the spec should use a stable test ID or include `withinText` with the visible card title. `withinText` resolves against the closest containing card, not a page-wide ancestor. When the intended journey explicitly calls for the first (or another ordered) repeated control and no reliable card title exists, Codex records a one-based `occurrence` to make that choice deterministic. Generated CSS selectors must be avoided unless no semantic target is available.
 
 `presentation.theme` controls only the temporary overlay: `presenter` is the default, product-facing warm-neutral walkthrough; `minimal` is a quieter neutral treatment; `debug` retains a high-contrast engineering surface for selector repair. Themes never alter the host application.
 
@@ -181,7 +181,7 @@ The first implementation uses a deterministic scanner before asking Codex to wri
 
 The scanner writes a compact `.demoflow/app-map.json`. When a demo is saved, DemoFlow also writes a shareable snapshot at `.demoflow/<demo-id>/app-map.json` and stores its SHA-256 fingerprint in the demo spec. The demo-local snapshot excludes machine-specific workspace paths. Codex receives this map and selected source snippets, not a full browser DOM or continuous visual stream. The proxy overlay remains the runtime verifier for chosen targets, including conditionally mounted UI. If static scanning finds no usable controls after checking all supported roots, Codex asks what the demo should prove instead of starting the app merely to discover UI. Opening a saved demo does not rescan source; a freshness check is explicit and returns only `current`, `stale`, or `unknown` to Codex.
 
-For a new demo, `suggest_demo_starts` ranks source-discovered buttons and links. It gives a small boost to a control matching the developer's requested outcome, favors visible product verbs such as Preview, Start, Open, and Join, and sharply deprioritizes Restore, Reset, Seed, Fixture, and Debug controls. The score is an explainable selection aid only. When more than one viable start remains and the developer has not named one, Codex presents up to three journeys and waits for a choice before writing a spec.
+For a new demo, `suggest_demo_starts` ranks source-discovered buttons and links. It gives a small boost to a control matching the developer's requested outcome, favors visible product verbs such as Preview, Start, Open, and Join, and sharply deprioritizes Restore, Reset, Seed, Fixture, and Debug controls. The score is an explainable selection aid only. Codex groups the evidence into distinct plausible customer flows when their goal, entry control, route, or required state differs. When more than one viable main flow remains and the developer has not named one, Codex presents up to three choices and waits for a selection before presenting a storyboard or writing a spec. The storyboard has `Step`, `User action`, `Why it matters`, `Evidence`, and `Confidence` columns; evidence must distinguish direct source support from conditional or unknown state.
 
 ### React and Next.js journey inspection
 

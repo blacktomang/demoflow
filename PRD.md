@@ -64,13 +64,14 @@ They want a reusable walkthrough, but this release intentionally prioritizes the
 
 1. User installs the DemoFlow Codex plugin and its local dependencies.
 2. User opens a supported web-app repository in Codex.
-3. User answers a compact Demo Brief: what they are showing, who is watching, and what the audience should understand by the end.
-4. Codex examines the codebase and returns a proposed journey: personas, prerequisites, actions, expected outcomes, and any assumptions.
-5. DemoFlow starts the app using a detected or user-approved development command.
-6. DemoFlow serves the app through a local preview URL and injects its temporary overlay into the rendered HTML.
-7. Before the first action, DemoFlow presents a brief product-facing introduction explaining what this demo will show.
-8. The developer follows the real UI; each tooltip highlights a real element and advances after the expected interaction or UI state.
-8. DemoFlow writes the editable demo specification to the repository and Codex flags any assumption or unresolved selector.
+3. User asks DemoFlow for a goal and target duration.
+4. Codex examines the codebase, identifies distinct plausible customer flows, and asks the user to choose when the request does not clearly name one.
+5. Codex presents a human-readable storyboard—action, value, evidence, and confidence—for the selected flow. The user confirms or adjusts it before a spec is saved.
+6. DemoFlow starts the app using a detected or user-approved development command.
+7. DemoFlow serves the app through a local preview URL and injects its temporary overlay into the rendered HTML.
+8. Before the first action, DemoFlow presents a brief product-facing introduction explaining what this demo will show.
+9. The developer follows the real UI; each tooltip highlights a real element and advances after the expected interaction or UI state.
+10. DemoFlow writes the editable demo specification to the repository and Codex flags any assumption or unresolved selector.
 
 ### Example prompt
 
@@ -93,8 +94,9 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 ### Required plugin behavior
 
 - Provide a `Generate demo` skill for Codex.
-- Ask for or infer a compact Demo Brief (showing, audience, outcome) and the local start command. Do not use a duration estimate.
-- Keep the model plan structured and reviewable before actions run.
+- Ask for or infer: goal, target duration, and local start command.
+- Show a human-readable storyboard before any JSON spec is written, with `Step`, `User action`, `Why it matters`, `Evidence`, and `Confidence` columns.
+- When source evidence reveals multiple plausible main flows, ask the developer to choose one rather than silently selecting a ranked start control.
 - Call the local MCP tools rather than relying on prose-only instructions.
 - Return a validated app-start command to Codex; Codex executes it through its native command-approval UI so the developer can approve, deny, or explain an adjustment.
 - When asked to demo the checked-out branch, compare local `HEAD` with a detected or developer-specified base branch, identify changed files, and let the developer choose a proposed journey or provide their own focus. This is read-only local Git analysis; it never fetches PRs, changes branches, or contacts GitHub.
@@ -109,6 +111,8 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 - Present an optional, product-facing intro card before the first action, summarizing the release or journey for the audience.
 - Advance based on user interaction or observable UI state.
 - Treat filling a form and clicking its real submit button as one walkthrough action; advance only after the meaningful value and actual submit click.
+- Model each independently clickable control as its own ordered walkthrough step; do not hide a second click inside a generic click step.
+- Do not impose a maximum number of demo steps; preserve the complete selected flow in one spec.
 - Wait briefly for the next step to mount after a real interaction before treating a React/Next.js conditional screen as a broken target.
 - Write a portable `demo.spec.json` file.
 - Save local branch and commit provenance in a branch-aware demo spec so a later viewer knows which change set it describes.
@@ -215,14 +219,16 @@ A preview is a one-shot handoff. Once its local URL is returned, the developer u
 
 ## 11. Demo planning and execution
 
-Codex produces a JSON specification before the live preview opens. Each step has:
+Before creating the durable JSON specification, Codex presents a human-readable storyboard with these columns: `Step`, `User action`, `Why it matters`, `Evidence`, and `Confidence`. It states source-backed controls, prerequisites, transitions, and any fixture assumptions, then waits for the developer to confirm or adjust the selected flow. If more than one customer-facing main flow is plausible, it presents the choices before it authors a storyboard.
+
+After confirmation, Codex produces a JSON specification before the live preview opens. Each step has:
 
 - user-facing intent
 - action type and target description
 - safe input values, if any
 - expected observable result
 
-Every step must identify one concrete element. DemoFlow prefers stable test IDs; when a repeated control has the same visible name, the spec also records the surrounding card title so the overlay can attach to the intended action. If the requested flow explicitly means the first repeated control and no stable card title exists, Codex records its one-based occurrence so that selection is visible and deterministic.
+Every step must identify one concrete element. Every independently clickable real action gets its own ordered spec step, so a sequence such as “open menu, then choose option” is not silently compressed into one click. The sole compound exception is filling a field followed by that field's real submit control, which is represented with `input-and-click`. A selected flow has no maximum step count: its complete set of real interactions remains in one spec. DemoFlow prefers stable test IDs; when a repeated control has the same visible name, the spec also records the surrounding card title so the overlay can attach to the intended action. If the requested flow explicitly means the first repeated control and no stable card title exists, Codex records its one-based occurrence so that selection is visible and deterministic.
 - tooltip title and explanation
 - risk level
 
