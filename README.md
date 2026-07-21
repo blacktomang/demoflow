@@ -33,10 +33,11 @@ Start a new Codex task after installation so its DemoFlow skill and MCP tools ar
 
 1. Open the local web-app project in Codex.
 2. Ask, for example: `Use DemoFlow to create a guided onboarding demo for this app.`
-3. Review the generated editable flow at `.demoflow/<demo-id>/demo.spec.json`.
-4. Approve Codex's native command prompt for the project's existing development script, or cancel/explain an adjustment there.
-5. Open the returned **Demo Mode** localhost URL and click through the real application. The tooltips advance as the real app changes state.
-6. Ask Codex to stop DemoFlow when you are finished.
+3. Answer DemoFlow's compact **Demo Brief**: what you are showing (new feature, PR change, onboarding, or bug fix), who is watching, and what they should understand by the end. There is no duration estimate and no dashboard.
+4. Review the generated editable flow at `.demoflow/<demo-id>/demo.spec.json`.
+5. Approve Codex's native command prompt for the project's existing development script, or cancel/explain an adjustment there.
+6. Open the returned **Demo Mode** localhost URL and click through the real application. The tooltips advance as the real app changes state.
+7. Ask Codex to stop DemoFlow when you are finished.
 
 DemoFlow never uploads project source code to a DemoFlow service, does not require an account or payment, and does not permanently modify application source. It writes only local `.demoflow/` artifacts and injects the temporary overlay through a second loopback-only localhost URL. It never stages, commits, or pushes Git changes after generating or repairing a demo.
 

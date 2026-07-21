@@ -9,14 +9,19 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
 
 ## Workflow
 
-1. Use Codex's terminal tool to run `node --version`. If Node.js is missing or below 20, explain the prerequisite and stop before calling DemoFlow MCP tools.
-2. Call `demoflow.list_demos` first. This lists saved demos without reading application source code.
+1. For a new or regenerated demo, begin with one compact **Demo Brief**. Ask the developer for only these three answers, in one guided message (not a dashboard or raw JSON):
+   - **What are you showing?** New feature, PR change, onboarding, or bug fix.
+   - **Who is watching?** Engineer, product stakeholder, or customer.
+   - **What should they understand by the end?** Free-form outcome.
+   Use reasonable values only when the developer already gave all three. Call `demoflow.prepare_demo_brief` with the answers before inspecting source. Do not ask for a duration or estimate.
+2. Use Codex's terminal tool to run `node --version`. If Node.js is missing or below 20, explain the prerequisite and stop before calling DemoFlow MCP tools.
+3. Call `demoflow.list_demos` first. This lists saved demos without reading application source code.
 3. If the developer chooses a saved demo, use its `demo.spec.json` directly; do not call `inspect_project`. Offer `demoflow.check_demo_freshness` only when the developer asks to validate it or when a stale-flow warning is needed. A `current` result can run; a `stale` result needs the developer's choice to run anyway or regenerate; an `unknown` result should offer the same choice.
 4. For a new or regenerated demo, call `demoflow.list_environments` before source inspection. If it returns a declared or detected profile, state its app directory, one declared start script, app URL, and API readiness URLs. Ask the developer to choose a profile when more than one is available; do not invent a backend command or edit environment files. For a selected profile, call `demoflow.inspect_project` with its `appDirectory`. Otherwise call `inspect_project` at the workspace root. Its source scan covers React/Next.js `src/`, root `app/`, `pages/`, and `components/`; an app does not need to be running for it to discover static routes and UI controls.
    - When the developer asks to demo the checked-out branch, PR changes, or what changed, call `demoflow.inspect_branch_changes` first. It uses only local Git history and returns the detected base branch, commits, and changed paths.
    - Explain the detected comparison and why each proposed journey is relevant. Offer the developer the proposed journeys **and** a free-form option to state the focus they want. Do not invent a user-facing flow from refactor-only changes; ask what the demo should prove instead.
    - After a branch inspection, let `write_spec` retain the returned branch and commit provenance. Never fetch a PR, change branches, stage, commit, or push.
-5. Call `demoflow.suggest_demo_starts` with the developer's requested outcome, then propose up to three short clean-start journey options using only targets found in the returned application map. Include the free-form option to state another focus.
+5. Call `demoflow.suggest_demo_starts` with the Demo Brief outcome, then propose up to three short clean-start journey options using only targets found in the returned application map. Include the free-form option to state another focus.
    - Treat the suggestions as an explainable ranking aid, not a substitute for product judgment. It favors visible user actions and deprioritizes restore/reset/seed/fixture/debug controls.
    - Read `blockedControls`, `requires`, and `transitions` from the app map. Never present a control with a known positive prerequisite as the first action of a clean-state demo. Either prepend a source-supported action that reaches that state, or say an existing fixture state is required and ask the developer to choose.
    - If more than one viable start exists, do **not** silently choose one or write a new spec. Ask the developer which proposed story they want, unless their request explicitly names the desired starting control.
@@ -33,7 +38,7 @@ Use this skill when the user wants a guided walkthrough or demo mode for a local
    - For a text field, textarea, select, or editable control that takes effect immediately after a value is supplied, use `advance: { type: "input-target", minLength: 1 }`.
    - When the developer must fill a control and then click a real submit button, treat that as one step: use `advance: { type: "input-and-click", minLength: 1, submitTarget: { role: "button", name: "…" } }`. Use `manual` only when no safe observable interaction should advance the flow.
    - Make an input-and-click step's tooltip name the real completion action (for example, “Submit the transfer case”), not just the field activity. The overlay will explicitly tell the developer to type and then select the named submit button. The final real action ends at a Demo complete panel rather than silently removing the overlay.
-7. Write a versioned `demo.spec.json` using `demoflow.write_spec`; pass the selected profile's `appDirectory` when present so its saved app map remains tied to the correct frontend package.
+7. Write a versioned `demo.spec.json` using `demoflow.write_spec`; include the validated `brief` exactly as returned by `prepare_demo_brief`, and pass the selected profile's `appDirectory` when present so its saved app map remains tied to the correct frontend package.
 8. For a selected environment profile, call `demoflow.prepare_environment`; otherwise call `demoflow.prepare_app_start` for a declared package script and the expected loopback URL. Do not ask for a separate prose confirmation.
 9. Run the returned exact command once with Codex's terminal tool in the returned working directory. This must trigger Codex's native command-approval prompt; never bypass it by running the development command from MCP.
 10. For a selected environment profile, call `demoflow.check_environment` after the command starts. Do not create a preview until every declared frontend/API readiness service is ready. Otherwise, after Codex reports the app is reachable, take the exact `Local:` URL printed by its development server. Never substitute `127.0.0.1` for `localhost` or the reverse. The preview URL is the completion of this workflow.

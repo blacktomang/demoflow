@@ -90,3 +90,15 @@ test("accepts a product-facing intro before the walkthrough", async () => {
   assert.equal(spec.intro?.title, "What changed");
   assert.equal(spec.provenance?.baseBranch, "main");
 });
+
+test("persists the developer-directed Demo Brief with the saved flow", async () => {
+  const workspacePath = await mkdtemp(path.join(os.tmpdir(), "demoflow-brief-"));
+  const appMap = { workspacePath, frameworkHints: [], scripts: [], routes: [], testIds: [], labels: [], controls: [], fingerprint: "a".repeat(64) };
+  await writeDemoSpec(workspacePath, {
+    version: 1, id: "briefed-demo", title: "Reviewer flow", goal: "Show the invite experience", startPath: "/",
+    brief: { showing: "new-feature", audience: "product-stakeholder", outcome: "A reviewer understands how a user invites a teammate." },
+    steps: [{ id: "invite", target: { role: "button", name: "Invite teammate" }, tooltip: { title: "Invite", body: "Invite a teammate." }, advance: { type: "click-target" } }],
+  }, appMap);
+  const spec = await readDemoSpec(workspacePath, "briefed-demo");
+  assert.deepEqual(spec.brief, { showing: "new-feature", audience: "product-stakeholder", outcome: "A reviewer understands how a user invites a teammate." });
+});

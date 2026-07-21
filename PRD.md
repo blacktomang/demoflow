@@ -64,7 +64,7 @@ They want a reusable walkthrough, but this release intentionally prioritizes the
 
 1. User installs the DemoFlow Codex plugin and its local dependencies.
 2. User opens a supported web-app repository in Codex.
-3. User asks DemoFlow for a goal and target duration.
+3. User answers a compact Demo Brief: what they are showing, who is watching, and what the audience should understand by the end.
 4. Codex examines the codebase and returns a proposed journey: personas, prerequisites, actions, expected outcomes, and any assumptions.
 5. DemoFlow starts the app using a detected or user-approved development command.
 6. DemoFlow serves the app through a local preview URL and injects its temporary overlay into the rendered HTML.
@@ -93,7 +93,7 @@ Use only demo-safe data. Explain the value of each screen in plain English.
 ### Required plugin behavior
 
 - Provide a `Generate demo` skill for Codex.
-- Ask for or infer: goal, target duration, and local start command.
+- Ask for or infer a compact Demo Brief (showing, audience, outcome) and the local start command. Do not use a duration estimate.
 - Keep the model plan structured and reviewable before actions run.
 - Call the local MCP tools rather than relying on prose-only instructions.
 - Return a validated app-start command to Codex; Codex executes it through its native command-approval UI so the developer can approve, deny, or explain an adjustment.
